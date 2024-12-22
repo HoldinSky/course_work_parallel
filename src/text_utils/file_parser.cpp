@@ -21,7 +21,7 @@ inline bool isvalid2(char const &c) {
     return isalpha(c);
 }
 
-int64_t findWordsAndPerformAction(char const *const str, int64_t const length, void (*action)(char const *)) {
+int64_t findWordsAndPerformAction(char const *const str, int64_t const length, const std::function<void(char const *)>& action) {
     int64_t wordStart = 0, wordEnd = 0;
     while (true) {
         while (wordStart < length && !isvalid2(str[wordStart])) {
@@ -43,7 +43,7 @@ int64_t findWordsAndPerformAction(char const *const str, int64_t const length, v
     }
 }
 
-void parseInputStreamByWord(std::istream &inputData, void (*actionPerWord)(char const *)) {
+void parseInputStreamByWord(std::istream &inputData, const std::function<void(char const *)>& actionPerWord) {
     char buffer[BUFFER_SIZE]{};
     int64_t charsProcessed = 0, effectiveChars = 0;
 

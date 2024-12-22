@@ -5,6 +5,19 @@
 #include <fstream>
 #include <iostream>
 
+void FileIndexer::indexWord(const char *word, const std::string &path) {
+    const auto wordStr = std::string(word);
+    std::set<std::string> pathSet;
+    try {
+        pathSet = this->index.at(wordStr);
+        pathSet.insert(path);
+    } catch (const std::out_of_range &_) {
+        pathSet.insert(path);
+    }
+
+    this->index.insert_or_assign(wordStr, pathSet);
+}
+
 int FileIndexer::indexFile(const std::string &path) {
     std::ifstream file(path, std::ios::in);
     if (!file) {
@@ -12,13 +25,10 @@ int FileIndexer::indexFile(const std::string &path) {
         return -1;
     }
 
-    auto addFile = [](char const * word) {
-        
-    };
+    parseInputStreamByWord(file, [&](char const *word) { this->indexWord(word, path); });
 
-    parseInputStreamByWord(static_cast<std::istream&>(file), addFile);
+    return 0;
 }
-
 
 int FileIndexer::indexDirectory(const std::string &path) {
     if (!std::filesystem::exists(path)) {
@@ -26,7 +36,26 @@ int FileIndexer::indexDirectory(const std::string &path) {
         return -1;
     }
 
-    for (const auto &entry : std::filesystem::directory_iterator(path)) {
-        this->indexDirectory(entry.path().string());
+    if (!std::filesystem::is_directory(path)) {
+        std::cerr << path << " is not a directory" << std::endl;
+        return -1;
+    }
+
+    for (const auto &entry: std::filesystem::directory_iterator(path)) {
+        if (entry.is_directory()) {
+            this->indexDirectory(entry.path().string());
+        } else {
+            this->indexFile(entry.path().string());
+        }
+    }
+
+    return 0;
+}
+
+std::set<std::string> FileIndexer::findFiles(const std::string &word) {
+    try {
+        return this->index.at(word);
+    } catch (const std::out_of_range &e) {
+        return {};
     }
 }

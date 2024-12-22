@@ -1,7 +1,8 @@
 #include <iostream>
 #include <fstream>
 
-#include "text_utils/file_parser.h"
+#include "FileIndexer.h"
+
 
 const std::string data_root_location = R"(D:\prg\cpp\inverted_index\data)";
 const std::string test_path = data_root_location + R"(\test_neg\2251_2.txt)";
@@ -11,14 +12,12 @@ void actionPerWord(char const* word) {
 }
 
 int main() {
-    std::ifstream fileInput(test_path, std::ios::in | std::ios::binary);
-    if (!fileInput) {
-        std::cerr << "Failed to open file: " << test_path << std::endl;
-        return 1;
+    FileIndexer indexer;
+
+    indexer.indexDirectory(data_root_location);
+    for (const auto files = indexer.findFiles("I"); const auto& filePath : files) {
+        std::cout << filePath << std::endl;
     }
 
-    std::istream& inputData = fileInput;
-
-    parseInputStreamByWord(inputData, actionPerWord);
     return 0;
 }

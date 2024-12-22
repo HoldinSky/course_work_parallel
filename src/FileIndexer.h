@@ -1,18 +1,21 @@
 #ifndef CW_FILEINDEXER_H
 #define CW_FILEINDEXER_H
 
-#include <map>
+#include <set>
+#include <unordered_map>
 #include <string>
 
 class FileIndexer {
 private:
-    std::map<std::string, std::string> index{};
+    std::unordered_map<std::string, std::set<std::string>> index{};
 
 private:
     int indexFile(const std::string& path);
+    void indexWord(const char* word, const std::string& path);
 
 public:
     int indexDirectory(const std::string& path);
+    std::set<std::string> findFiles(const std::string& word);
 };
 
 
