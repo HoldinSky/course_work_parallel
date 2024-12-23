@@ -4,7 +4,8 @@
 #include <cstdint>
 #include <iostream>
 
-#define BUFFER_SIZE 1024
+// 1 Megabyte
+#define BUFFER_SIZE 1048576
 
 const std::set chars_to_skip = {
     '\0', '\t', '\n', '\r',

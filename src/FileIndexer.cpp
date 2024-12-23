@@ -32,12 +32,12 @@ int FileIndexer::indexFile(const std::string &path) {
 
 int FileIndexer::indexDirectory(const std::string &path) {
     if (!std::filesystem::exists(path)) {
-        std::cerr << "Directory does not exist" << std::endl;
+        std::cerr << "Directory " << path << " does not exist\n";
         return -1;
     }
 
     if (!std::filesystem::is_directory(path)) {
-        std::cerr << path << " is not a directory" << std::endl;
+        std::cerr << path << " is not a directory\n";
         return -1;
     }
 

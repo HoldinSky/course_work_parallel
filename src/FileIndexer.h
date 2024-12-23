@@ -5,6 +5,8 @@
 #include <unordered_map>
 #include <string>
 
+#include "thread_pool/pool.h"
+
 class FileIndexer {
 private:
     std::unordered_map<std::string, std::set<std::string>> index{};

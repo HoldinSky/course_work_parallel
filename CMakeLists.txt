@@ -8,6 +8,7 @@ include_directories(src/)
 add_executable(
         inverted_index src/main.cpp
         src/text_utils/file_parser.h src/text_utils/file_parser.cpp
-        src/FileIndexer.cpp
-        src/FileIndexer.h
+        src/FileIndexer.h src/FileIndexer.cpp
+        src/thread_pool/pool.h src/thread_pool/pool.cpp
+        src/main_helper.h
 )
