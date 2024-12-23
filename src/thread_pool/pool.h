@@ -10,7 +10,7 @@
 
 struct ThreadTask {
     std::function<void()> action;
-    uint64_t id{};
+    uint64_t id{};  // for debug only
 
     void operator()() const {
         action();
