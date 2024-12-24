@@ -11,4 +11,8 @@ add_executable(
         src/FileIndexer.h src/FileIndexer.cpp
         src/thread_pool/pool.h src/thread_pool/pool.cpp
         src/main_helper.h
+        src/api/server.h
+        src/api/server.cpp
+        src/common.h
+        src/common.cpp
 )
