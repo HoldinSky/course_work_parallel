@@ -1,12 +1,12 @@
-#ifndef CW_POOL_H
-#define CW_POOL_H
+#ifndef CW_THREAD_POOL_POOL_H
+#define CW_THREAD_POOL_POOL_H
 
 #include <functional>
 #include <thread>
 #include <queue>
 #include <condition_variable>
 
-#include "main_helper.h"
+#include "common.h"
 
 struct ThreadTask {
     std::function<void()> action;
@@ -77,4 +77,4 @@ private:
     bool getTaskFromQueue(ThreadTask &outTask);
 };
 
-#endif // CW_POOL_H
+#endif // CW_THREAD_POOL_POOL_H

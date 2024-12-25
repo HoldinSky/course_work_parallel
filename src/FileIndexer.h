@@ -18,10 +18,14 @@ public:
     }
 
 private:
-    static constexpr const char *defaultIndexFile = R"(D:\prg\cpp\inverted_index\working_data\index.csv)";
+    static constexpr auto defaultIndexFile = R"(D:\prg\cpp\inverted_index\working_data\index.csv)";
+
+    bool overwriteSave;
 
     std::unordered_map<std::string, std::set<std::string> > index{};
-    bool overwriteSave;
+    std::atomic_bool isCurrentlyIndexing{false};
+
+    std::shared_mutex indexLock{};
 
 private:
     void addMapping(const std::string &word, const std::string &path);
@@ -30,6 +34,8 @@ private:
 
 private:
     int indexFile(const std::string &path);
+
+    int indexDirectory(const std::string &path);
 
     void indexWord(const char *word, const std::string &path);
 
@@ -41,11 +47,10 @@ private:
     void readIndexFromFile();
 
 public:
-    int indexDirectory(const std::string &path);
+    int addToIndex(const std::string &path);
 
-    std::set<std::string> all(const std::vector<std::string> &words);
-
-    std::set<std::string> any(const std::vector<std::string> &words);
+    int all(std::vector<std::string> const &words, std::set<std::string> *const out_Paths);
+    int any(std::vector<std::string> const &words, std::set<std::string> *const out_Paths);
 };
 
 

@@ -1,68 +1,16 @@
 #include "server.h"
-#include "common.h"
+#include "socketUtils.h"
+#include "router.h"
 
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
-#include <vector>
 #include <unordered_map>
 
-namespace srv {
-    uint32_t createAndOpenSocket(uint16_t port);
-}
+// utilities function here
 
-int32_t srv::routine() {
-    const uint32_t mainLoopSocket_d = createAndOpenSocket(DEFAULT_PORT);
-
-    std::unordered_map<acceptedClient, std::thread> client_thread_handlers{};
-
-    printf("[INFO] Server is up and running on :%d\n", DEFAULT_PORT);
-
-    std::thread _([&]() {
-        [[noreturn]]
-        while (true) {
-            std::this_thread::sleep_for(std::chrono::minutes(1));
-            for (auto &[client, thread]: client_thread_handlers) {
-                if (thread.joinable()) {
-                    thread.join();
-                    client_thread_handlers.erase(client);
-                }
-            }
-        }
-    });
-
-    fd_set readfds;
-    constexpr timeval timeout{1, 0}; // timeout 1 second
-
-    while (true) {
-        FD_ZERO(&readfds);
-        FD_SET(mainLoopSocket_d, &readfds);
-
-        const int rcode = select(0, &readfds, nullptr, nullptr, &timeout); // '0' for Windows fd_set size
-
-        if (rcode == SOCKET_ERROR) {
-            fprintf(stderr, "[ERR | SOCK] Select error: %d\n", WSAGetLastError());
-            break;
-        }
-
-        if (FD_ISSET(mainLoopSocket_d, &readfds)) {
-            auto connection = acceptConnection(mainLoopSocket_d);
-
-            client_thread_handlers.insert(std::move(connection));
-        }
-    }
-
-    for (auto &[_, thread]: client_thread_handlers) {
-        if (thread.joinable()) {
-            thread.join();
-        }
-    }
-
-    closesocket(mainLoopSocket_d);
-    return 0;
-}
-
-uint32_t srv::createAndOpenSocket(const uint16_t port) {
+uint32_t createAndOpenSocket(const uint16_t port)
+{
     sockaddr_in server{};
 
     server.sin_family = AF_INET;
@@ -70,8 +18,9 @@ uint32_t srv::createAndOpenSocket(const uint16_t port) {
     server.sin_addr.s_addr = htonl(INADDR_ANY);
 
     const uint32_t socketDescriptor = socket(AF_INET, SOCK_STREAM, 0);
-    const int64_t returnCode = bind(socketDescriptor, reinterpret_cast<sockaddr *>(&server), sizeof(server));
-    if (returnCode == -1) {
+    const int64_t returnCode = bind(socketDescriptor, reinterpret_cast<sockaddr*>(&server), sizeof(server));
+    if (returnCode == -1)
+    {
         closesocket(socketDescriptor);
         printErrorAndHalt("server :: Failed to bind socket");
     }
@@ -81,13 +30,15 @@ uint32_t srv::createAndOpenSocket(const uint16_t port) {
     return socketDescriptor;
 }
 
-acceptedClient internalAccept(const uint32_t &socket_handler) {
+acceptedClient internalAccept(const uint32_t& socket_handler)
+{
     acceptedClient accepted{};
 
     int32_t client_len = sizeof(accepted.address);
-    accepted.socket_fd = accept(socket_handler, reinterpret_cast<sockaddr *>(&accepted.address), &client_len);
+    accepted.socketFd = accept(socket_handler, reinterpret_cast<sockaddr*>(&accepted.address), &client_len);
 
-    if (accepted.socket_fd == -1) {
+    if (accepted.socketFd == -1)
+    {
         closesocket(socket_handler);
         printErrorAndHalt("server :: Failed to accept socket connection\n");
     }
@@ -95,7 +46,8 @@ acceptedClient internalAccept(const uint32_t &socket_handler) {
     return accepted;
 }
 
-std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t &socketHandler) {
+std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t& socketHandler)
+{
     auto accepted = internalAccept(socketHandler);
 
     printf("[INFO | SOCK] Successfully accepted connection\n");
@@ -104,20 +56,128 @@ std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t &soc
     return std::make_pair(accepted, std::move(t));
 }
 
-int32_t srv::handleRequest(const acceptedClient &client) {
+// main part here
+
+int32_t srv::serverRoutine()
+{
+    const uint32_t mainLoopSocket_d = createAndOpenSocket(DEFAULT_PORT);
+
+    std::unordered_map<acceptedClient, std::thread> clientHandlerThreads{};
+
+    printf("[INFO] Server is up and running on :%d\n", DEFAULT_PORT);
+
+    std::thread _([&]()
+    {
+        [[noreturn]]
+        while (true)
+        {
+            std::this_thread::sleep_for(std::chrono::seconds(15));
+            for (auto& [client, thread] : clientHandlerThreads)
+            {
+                if (thread.joinable())
+                {
+                    thread.join();
+                    clientHandlerThreads.erase(client);
+                }
+            }
+        }
+    });
+
+    fd_set readfds;
+    constexpr timeval timeout{1, 0}; // timeout 1 second
+
+    while (true)
+    {
+        FD_ZERO(&readfds);
+        FD_SET(mainLoopSocket_d, &readfds);
+
+        const int rcode = select(0, &readfds, nullptr, nullptr, &timeout); // '0' for Windows fd_set size
+
+        if (rcode == SOCKET_ERROR)
+        {
+            fprintf(stderr, "[ERR | SOCK] Select error: %d\n", WSAGetLastError());
+            break;
+        }
+
+        if (FD_ISSET(mainLoopSocket_d, &readfds))
+        {
+            auto connection = acceptConnection(mainLoopSocket_d);
+
+            clientHandlerThreads.insert(std::move(connection));
+        }
+    }
+
+    for (auto& [_, thread] : clientHandlerThreads)
+    {
+        if (thread.joinable())
+        {
+            thread.join();
+        }
+    }
+
+    closesocket(mainLoopSocket_d);
+    return 0;
+}
+
+void routeRequest(uint32_t const& socketFd)
+{
+    static constexpr int routingBufferSize = 1024;
+    SocketMessageWrapper buffer{};
+
+    int rcode = recv(socketFd, reinterpret_cast<char*>(&buffer.length), sizeof(buffer.length), 0);
+    if (rcode <= 0)
+    {
+        return;
+    }
+
+    rcode = recv(socketFd, buffer.data, buffer.length, 0);
+    if (rcode <= 0)
+    {
+        return;
+    }
+
+    auto const route = std::string(buffer.data);
+    switch (route)
+    {
+    case ServerRoute::uploadFile:
+        ServerRouter::uploadFile(socketFd);
+        break;
+    case ServerRoute::deleteFile:
+        ServerRouter::deleteFile(socketFd);
+        break;
+    case ServerRoute::filesWithAllWords:
+        ServerRouter::findFilesWithAllWords(socketFd);
+        break;
+    case ServerRoute::filesWithAnyWord:
+        ServerRouter::findFilesWithAnyWords(socketFd);
+        break;
+    case ServerRoute::reindex:
+        ServerRouter::reindex(socketFd);
+        break;
+    default:
+        auto const msg = "Unknown route";
+        send(socketFd, msg, strlen(msg), 0);
+        return;
+    }
+}
+
+int32_t srv::handleRequest(const acceptedClient& client)
+{
     int32_t msg_pos = 0;
     char buffer[BUFFER_SIZE];
 
-
-    startMessage(buffer, ++msg_pos, BUFFER_SIZE, Commands::readyReceiveData);
-    if (!safeSend(client.socket_fd, buffer, msg_pos, 0)) {
+    startMessage(buffer, ++msg_pos, BUFFER_SIZE, Commands::listeningTheSocket);
+    if (!safeSend(client.socketFd, buffer, msg_pos, 0))
+    {
         return -1;
     }
 
-    // accept task input in 300 seconds timeout
-    setTimeout(client.socket_fd, SO_RCVTIMEO, 300);
+    // accept task input in 10 seconds timeout
+    setTimeout(client.socketFd, SO_RCVTIMEO, 15);
 
-    closesocket(client.socket_fd);
+    routeRequest(client.socketFd);
+
+    closesocket(client.socketFd);
 
     return 0;
 }
