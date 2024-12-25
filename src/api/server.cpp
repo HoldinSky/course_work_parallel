@@ -139,11 +139,11 @@ void routeRequest(uint32_t const& socketFd)
     auto const route = std::string(buffer.data);
     switch (route)
     {
-    case ServerRoute::uploadFile:
-        ServerRouter::uploadFile(socketFd);
+    case ServerRoute::addToIndex:
+        ServerRouter::addToIndex(socketFd);
         break;
-    case ServerRoute::deleteFile:
-        ServerRouter::deleteFile(socketFd);
+    case ServerRoute::removeFromIndex:
+        ServerRouter::removeFromIndex(socketFd);
         break;
     case ServerRoute::filesWithAllWords:
         ServerRouter::findFilesWithAllWords(socketFd);

@@ -4,15 +4,37 @@
 
 #include "socketUtils.h"
 
+// utilities here
+
+void ServerRouter::decideWhatToIndexAndStart(SocketMessageWrapper const& messageFromClient)
+{
+    if (messageFromClient.length == 0)
+    {
+        indexer.reindexAll();
+    } else
+    {
+        // todo get paths list reindex only them
+    }
+}
+
 void stringToWordList(char const* const carrier, std::vector<std::string>* const out_wordList)
 {
+    // todo implement
 }
 
-void ServerRouter::uploadFile(uint32_t const& socketFd)
+// methods here
+
+void ServerRouter::addToIndex(uint32_t const& socketFd)
 {
+    SocketMessageWrapper buffer{};
+    ReadFromSocketToWrapper(socketFd, &buffer, 0);
+
+    ServerRouter::decideWhatToIndexAndStart(buffer);
+
+    send(socketFd, Commands::processDone, Commands::processDoneLen, 0);
 }
 
-void ServerRouter::deleteFile(uint32_t const& socketFd)
+void ServerRouter::removeFromIndex(uint32_t const& socketFd)
 {
 }
 

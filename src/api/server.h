@@ -37,10 +37,10 @@ namespace srv {
 
 enum ServerRoute
 {
-    uploadFile = "upload-file",
-    deleteFile = "delete-file",
+    addToIndex = "add-to-index",
+    removeFromIndex = "remove-from-index",
     filesWithAnyWord = "files-any-word",
-    filesWithAllWords = "file-with-all-words",
+    filesWithAllWords = "file-all-words",
     reindex = "reindex",
 };
 
