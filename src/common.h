@@ -3,6 +3,7 @@
 
 #include <mutex>
 #include <shared_mutex>
+#include <condition_variable>
 
 #include <cstdint>
 #include <chrono>
@@ -38,5 +39,17 @@ measureExecutionTime(FT func) {
 
     return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
 }
+
+/// both indices are inclusive
+struct Range
+{
+    int64_t start{-1};
+    int64_t end{-1};
+
+    [[nodiscard]] int64_t length() const
+    {
+        return end - start + 1;
+    }
+};
 
 #endif // CW_COMMON_H

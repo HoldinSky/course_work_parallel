@@ -54,7 +54,6 @@ void FileIndexer::removeMapping(std::string const& word, std::string const& path
         if (path.empty())
         {
             this->index.erase(word);
-            this->allFilePaths.erase(word);
         }
     }
     catch (std::out_of_range const& _)
@@ -105,7 +104,7 @@ int FileIndexer::indexFile(fs::path const& path)
     if (!file)
     {
         fprintf(stderr, "[ERR] Could not open file %ls\n", path.c_str());
-        return -1;
+        return ERROR_FILE_CANNOT_BE_OPENED;
     }
 
     parseInputStreamByWord(file, [&](char const* word) { this->indexWord(word, pathStr); });
@@ -120,7 +119,7 @@ int FileIndexer::removeFile(fs::path const& path)
     if (!file)
     {
         fprintf(stderr, "[ERR] Could not open file %ls\n", path.c_str());
-        return -1;
+        return ERROR_FILE_CANNOT_BE_OPENED;
     }
 
     parseInputStreamByWord(file, [&](char const* word) { this->removeWord(word, pathStr); });
@@ -140,7 +139,6 @@ void FileIndexer::removeWord(char const* word, std::string const& path)
     this->removeMapping(wordStr, path);
 }
 
-
 std::set<std::string> FileIndexer::findFiles(const std::string& word)
 {
     try
@@ -153,7 +151,7 @@ std::set<std::string> FileIndexer::findFiles(const std::string& word)
     }
 }
 
-void FileIndexer::readIndexFromFile()
+void FileIndexer::readIndexFromCSV()
 {
     if (!fs::exists(defaultIndexFile))
     {
@@ -185,7 +183,7 @@ void FileIndexer::readIndexFromFile()
     }
 }
 
-void FileIndexer::saveIndexToFile()
+void FileIndexer::saveIndexToCSV()
 {
     const bool exists = fs::exists(defaultIndexFile);
     if (!this->overwriteSave && exists)
@@ -232,18 +230,22 @@ int FileIndexer::addToIndex(const std::string& pathStr)
     if (!fs::exists(path))
     {
         fprintf(stderr, "[ERR] Path %ls does not exist\n", path.c_str());
-        return -1;
+        return ERROR_PATH_DOES_NOT_EXIST;
     }
 
     exclusiveLock _(this->indexLock);
     int rcode;
     this->isCurrentlyIndexing.exchange(true);
-    if (!fs::is_directory(path))
+    if (fs::is_directory(path))
     {
         rcode = this->indexDirectory(path);
     }
     else
     {
+        if (this->allFilePaths.contains(pathStr))
+        {
+            return ERROR_FILE_ALREADY_INDEXED;
+        }
         rcode = this->indexFile(path);
     }
     this->isCurrentlyIndexing.exchange(false);
@@ -257,23 +259,33 @@ int FileIndexer::removeFromIndex(std::string const& pathStr)
     if (!fs::exists(path))
     {
         fprintf(stderr, "[ERR] Path %ls does not exist\n", path.c_str());
-        return -1;
+        return ERROR_PATH_DOES_NOT_EXIST;
     }
 
     exclusiveLock _(this->indexLock);
     int rcode;
-    this->isCurrentlyIndexing.exchange(true);
-    if (!fs::is_directory(path))
+    if (fs::is_directory(path))
     {
         rcode = this->removeDirectory(path);
     }
     else
     {
+        if (!this->allFilePaths.contains(pathStr))
+        {
+            return ERROR_FILE_ALREADY_NOT_INDEXED;
+        }
         rcode = this->removeFile(path);
     }
-    this->isCurrentlyIndexing.exchange(false);
 
     return rcode;
+}
+
+void FileIndexer::removeAllFromIndex()
+{
+    exclusiveLock _(this->indexLock);
+
+    this->index.clear();
+    this->allFilePaths.clear();
 }
 
 void FileIndexer::reindexAll()
@@ -303,13 +315,13 @@ int FileIndexer::all(const std::vector<std::string>& words, std::set<std::string
 {
     if (this->isCurrentlyIndexing.load())
     {
-        return CURRENTLY_INDEXING_ERROR;
+        return ERROR_CURRENTLY_INDEXING;
     }
 
     sharedLock _(this->indexLock);
     if (words.empty())
     {
-        return 0;
+        return ERROR_WORDS_NOT_PROVIDED;
     }
 
     *out_Paths = this->findFiles(words[0]);
@@ -334,13 +346,13 @@ int FileIndexer::any(const std::vector<std::string>& words, std::set<std::string
 {
     if (this->isCurrentlyIndexing.load())
     {
-        return CURRENTLY_INDEXING_ERROR;
+        return ERROR_CURRENTLY_INDEXING;
     }
 
     sharedLock _(this->indexLock);
     if (words.empty())
     {
-        return 0;
+        return ERROR_WORDS_NOT_PROVIDED;
     }
 
     for (const auto& word : words)

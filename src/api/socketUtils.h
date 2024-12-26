@@ -39,6 +39,10 @@ struct Commands
     static constexpr const char* const processDone = "done"; // informing client of the end of resource-consuming task
     static constexpr int32_t processDoneLen = strLength(processDone);
 
+    static constexpr const char* const currentlyIndexing = "indexing";
+    // informing client of index being currently in progress
+    static constexpr int32_t currentlyIndexingLen = strLength(currentlyIndexing);
+
     // client -> server commands
     static constexpr const char* const getProgress = "smp"; // send me progress
     static constexpr int32_t getProgressLen = strLength(getProgress);
@@ -52,12 +56,13 @@ void SendStringList(uint32_t const socket, std::set<std::string> const& stringLi
 
 // c-style string manipulation
 
-void populateMessageWithBytes(
+/// updates 'currentSize' variable in accordance to count of bytes added to 'buf' = sizeof(data).
+uint32_t populateMessageWithBytes(
     char* buf,
-    uint32_t maxSize,
-    uint32_t& currentSize,
+    uint32_t& bufSize,
+    char const* data,
     size_t dataSize,
-    char* ptrToData
+    uint32_t maxSize
 );
 
 /// updates 'currentSize' variable in accordance to count of bytes added to 'buf'.
@@ -68,7 +73,7 @@ void appendToMessage(char* buf, uint32_t& currentSize, const uint32_t maxSize, T
     const auto ptr = reinterpret_cast<char*>(&data);
     const size_t dataSize = sizeof(data);
 
-    populateMessageWithBytes(buf, maxSize, currentSize, dataSize, ptr);
+    populateMessageWithBytes(buf, currentSize, ptr, dataSize, maxSize);
 }
 
 /// rewrites passed 'data' at the beginning of 'buf'.
@@ -85,7 +90,7 @@ void appendToMessage(char* buf, int32_t& currentSize, uint32_t maxSize, const ch
 
 /// rewrites passed message 'data' at the beginning of 'buf'.
 /// 'currentSize' becomes the size of 'data' excluding '\0'
-void startMessage(char* buf, int32_t& currentSize, uint32_t maxSize, const char* data);
+void startMessage(char* buf, uint32_t& currentSize, uint32_t maxSize, const char* data);
 
 bool safeSend(uint32_t socket_fd, const void* buf, int32_t n, int32_t flags);
 

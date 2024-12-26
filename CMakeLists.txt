@@ -17,3 +17,7 @@ add_executable(
         src/api/router.h
         src/api/router.cpp
 )
+
+if(WIN32)
+    target_link_libraries(inverted_index ws2_32)
+endif()

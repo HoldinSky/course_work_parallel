@@ -35,13 +35,13 @@ namespace srv {
     int32_t handleRequest(const acceptedClient &client);
 }
 
-enum ServerRoute
+struct ServerRoute
 {
-    addToIndex = "add-to-index",
-    removeFromIndex = "remove-from-index",
-    filesWithAnyWord = "files-any-word",
-    filesWithAllWords = "file-all-words",
-    reindex = "reindex",
+    static constexpr const char* const addToIndex = "add-to-index";
+    static constexpr const char* const removeFromIndex = "remove-from-index";
+    static constexpr const char* const filesWithAnyWord = "files-any-word";
+    static constexpr const char* const filesWithAllWords = "file-all-words";
+    static constexpr const char* const reindex = "reindex";
 };
 
 #endif // CW_API_SERVER_H

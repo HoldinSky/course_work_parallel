@@ -1,9 +1,10 @@
 #ifndef CW_API_ROUTER_H
 #define CW_API_ROUTER_H
-#include <cstdint>
 
 #include "FileIndexer.h"
 #include "socketUtils.h"
+
+#include <cstdint>
 
 class ServerRouter
 {
@@ -11,8 +12,8 @@ private:
     static FileIndexer indexer;
 
 private:
-
     static void decideWhatToIndexAndStart(SocketMessageWrapper const& messageFromClient);
+    static void decideWhatToRemoveAndStart(SocketMessageWrapper const& messageFromClient);
 
 public:
     static void addToIndex(uint32_t const& socketFd);

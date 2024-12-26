@@ -1,14 +1,21 @@
 #ifndef CW_FILEINDEXER_H
 #define CW_FILEINDEXER_H
 
-#define CURRENTLY_INDEXING_ERROR 27
+#define ERROR_FILE_CANNOT_BE_OPENED 270
+
+#define ERROR_CURRENTLY_INDEXING 271
+#define ERROR_PATH_DOES_NOT_EXIST 272
+#define ERROR_FILE_ALREADY_INDEXED 273
+#define ERROR_FILE_ALREADY_NOT_INDEXED 274
+#define ERROR_WORDS_NOT_PROVIDED 275
+
+#include "thread_pool/pool.h"
 
 #include <set>
 #include <unordered_map>
 #include <string>
 #include <filesystem>
 
-#include "thread_pool/pool.h"
 
 namespace fs = std::filesystem;
 
@@ -20,12 +27,12 @@ private:
 public:
     explicit FileIndexer(bool const overwriteStoreFile = true) : overwriteSave(overwriteStoreFile)
     {
-        this->readIndexFromFile();
+        this->readIndexFromCSV();
     };
 
     ~FileIndexer()
     {
-        this->saveIndexToFile();
+        this->saveIndexToCSV();
     }
 
 private:
@@ -36,6 +43,7 @@ private:
 
 private:
     std::atomic_bool isCurrentlyIndexing{false};
+    std::atomic_bool dangerouslyStopIndexing{false};
     std::shared_mutex indexLock{};
 
 private:
@@ -57,13 +65,14 @@ private:
 private:
     std::set<std::string> findFiles(std::string const& word);
 
-    void saveIndexToFile();
+    void saveIndexToCSV();
 
-    void readIndexFromFile();
+    void readIndexFromCSV();
 
 public:
     int addToIndex(std::string const& pathStr);
     int removeFromIndex(std::string const& pathStr);
+    void removeAllFromIndex();
     void reindexAll();
 
     int all(std::vector<std::string> const& words, std::set<std::string>* const out_Paths);

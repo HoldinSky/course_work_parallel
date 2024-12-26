@@ -38,12 +38,14 @@ void ReadFromSocketToWrapper(uint32_t const socket, struct SocketMessageWrapper*
     recv(socket, msg->data, msg->length, flags);
 }
 
-void AppendToString(char** dest, const char* src) {
-    size_t destLen = *dest ? strlen(*dest) : 0;
-    size_t srcLen = strlen(src);
+void AppendToString(char** dest, const char* src)
+{
+    size_t const destLen = *dest ? strlen(*dest) : 0;
+    size_t const srcLen = strlen(src);
 
-    char* newBuffer = static_cast<char*>(realloc(*dest, destLen + srcLen + 1)); // +1 for null terminator
-    if (!newBuffer) {
+    char* const newBuffer = static_cast<char*>(realloc(*dest, destLen + srcLen + 1)); // +1 for null terminator
+    if (!newBuffer)
+    {
         fprintf(stderr, "Memory allocation failed\n");
         exit(EXIT_FAILURE);
     }
@@ -74,7 +76,7 @@ void appendToMessage(char* buf, uint32_t& current_size, const uint32_t max_size,
     const auto ptr = const_cast<char*>(data);
     const size_t data_size = strlen(data);
 
-    populateMessageWithBytes(buf, max_size, current_size, data_size, ptr);
+    populateMessageWithBytes(buf, current_size, ptr, data_size, max_size);
 }
 
 /// rewrites passed message 'data' at the beginning of 'buf'.
@@ -90,7 +92,7 @@ bool safeSend(const uint32_t socket_fd, const void* buf, const int32_t n, const 
 {
     char error = 0;
     int len = sizeof(error);
-    const int retval = getsockopt(socket_fd, SOL_SOCKET, SO_ERROR, &error, &len);
+    int const retval = getsockopt(socket_fd, SOL_SOCKET, SO_ERROR, &error, &len);
 
     char errBuf[256];
     if (retval != 0)

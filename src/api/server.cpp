@@ -9,7 +9,7 @@
 
 // utilities function here
 
-uint32_t createAndOpenSocket(const uint16_t port)
+uint32_t createAndOpenSocket(uint16_t const port)
 {
     sockaddr_in server{};
 
@@ -68,7 +68,6 @@ int32_t srv::serverRoutine()
 
     std::thread _([&]()
     {
-        [[noreturn]]
         while (true)
         {
             std::this_thread::sleep_for(std::chrono::seconds(15));
@@ -137,36 +136,39 @@ void routeRequest(uint32_t const& socketFd)
     }
 
     auto const route = std::string(buffer.data);
-    switch (route)
+    if (strcmp(buffer.data, ServerRoute::addToIndex) == 0)
     {
-    case ServerRoute::addToIndex:
         ServerRouter::addToIndex(socketFd);
-        break;
-    case ServerRoute::removeFromIndex:
+    }
+    else if (strcmp(buffer.data, ServerRoute::removeFromIndex) == 0)
+    {
         ServerRouter::removeFromIndex(socketFd);
-        break;
-    case ServerRoute::filesWithAllWords:
+    }
+    else if (strcmp(buffer.data, ServerRoute::filesWithAllWords) == 0)
+    {
         ServerRouter::findFilesWithAllWords(socketFd);
-        break;
-    case ServerRoute::filesWithAnyWord:
+    }
+    else if (strcmp(buffer.data, ServerRoute::filesWithAnyWord) == 0)
+    {
         ServerRouter::findFilesWithAnyWords(socketFd);
-        break;
-    case ServerRoute::reindex:
+    }
+    else if (strcmp(buffer.data, ServerRoute::reindex) == 0)
+    {
         ServerRouter::reindex(socketFd);
-        break;
-    default:
+    }
+    else
+    {
         auto const msg = "Unknown route";
         send(socketFd, msg, strlen(msg), 0);
-        return;
     }
 }
 
 int32_t srv::handleRequest(const acceptedClient& client)
 {
-    int32_t msg_pos = 0;
+    uint32_t msg_pos = 0;
     char buffer[BUFFER_SIZE];
 
-    startMessage(buffer, ++msg_pos, BUFFER_SIZE, Commands::listeningTheSocket);
+    startMessage(buffer, msg_pos, BUFFER_SIZE, Commands::listeningTheSocket);
     if (!safeSend(client.socketFd, buffer, msg_pos, 0))
     {
         return -1;
