@@ -39,9 +39,11 @@ struct Commands
     static constexpr const char* const processDone = "done"; // informing client of the end of resource-consuming task
     static constexpr int32_t processDoneLen = strLength(processDone);
 
-    static constexpr const char* const currentlyIndexing = "indexing";
-    // informing client of index being currently in progress
+    static constexpr const char* const currentlyIndexing = "indexing"; // informing client of index being currently in progress
     static constexpr int32_t currentlyIndexingLen = strLength(currentlyIndexing);
+
+    static constexpr const char* const error = "error";
+    static constexpr int32_t errorLen = strLength(error);
 
     // client -> server commands
     static constexpr const char* const getProgress = "smp"; // send me progress

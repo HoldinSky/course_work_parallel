@@ -12,7 +12,7 @@ private:
     static FileIndexer indexer;
 
 private:
-    static void decideWhatToIndexAndStart(SocketMessageWrapper const& messageFromClient);
+    static int decideWhatToIndexAndStart(SocketMessageWrapper const& messageFromClient);
     static void decideWhatToRemoveAndStart(SocketMessageWrapper const& messageFromClient);
 
 public:

@@ -20,7 +20,7 @@ inline bool defaultIsDelimiter(char const& ch)
 }
 
 void parseInputStreamByWord(std::istream& inputData, std::function<void(char const*)> const& actionPerWord,
-                            bool (*isDelimiter)(char const&) = defaultIsDelimiter);
+                            uint32_t count = 0, bool (*isDelimiter)(char const&) = defaultIsDelimiter);
 
 /// @param str where to look for the word
 /// @param length total length of str
