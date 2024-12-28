@@ -32,12 +32,6 @@ uint32_t populateMessageWithBytes(
     return bufSize - startBufSize;
 }
 
-void ReadFromSocketToWrapper(uint32_t const socket, struct SocketMessageWrapper* const msg, int const flags)
-{
-    recv(socket, reinterpret_cast<char*>(&msg->length), sizeof(msg->length), flags);
-    recv(socket, msg->data, msg->length, flags);
-}
-
 void AppendToString(char** dest, const char* src)
 {
     size_t const destLen = *dest ? strlen(*dest) : 0;
@@ -52,22 +46,6 @@ void AppendToString(char** dest, const char* src)
 
     *dest = newBuffer; // Update the pointer
     strcpy(*dest + destLen, src); // Append the source string
-}
-
-void SendStringList(uint32_t const socket, std::set<std::string> const& stringList)
-{
-    SocketMessageWrapper buffer{};
-    buffer.length = static_cast<int32_t>(stringList.size());
-
-    for (auto const& string : stringList)
-    {
-        AppendToString(&buffer.data, string.c_str());
-    }
-
-    send(socket, reinterpret_cast<char*>(&buffer.length), sizeof(buffer.length), 0);
-    send(socket, buffer.data, static_cast<int32_t>(strlen(buffer.data)), 0);
-
-    free(buffer.data);
 }
 
 /// 'current_size' becomes the size of 'data' including '\0'

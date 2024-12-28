@@ -16,6 +16,10 @@
 #define ERROR_FILE_ALREADY_NOT_INDEXED 274
 #define ERROR_WORDS_NOT_PROVIDED 275
 #define ERROR_PATHS_NOT_PROVIDED 276
+#define ERROR_EMPTY_BODY 277
+
+// 1 Megabyte
+#define BYTES_IN_1MB 1048576
 
 using rwLock = std::shared_mutex;
 using sharedLock = std::shared_lock<rwLock>;
@@ -34,7 +38,7 @@ constexpr uint32_t strLength(const char* const str)
     {
     }
 
-    return len + 1;
+    return len;
 }
 
 inline std::string trim(const std::string& s)
@@ -69,6 +73,7 @@ inline std::string MapErrorCodeToString(int32_t const& code)
     case ERROR_WORDS_NOT_PROVIDED: return "Words were not provided";
     case ERROR_PATHS_NOT_PROVIDED: return "Paths were not provided";
     case ERROR_FILE_CANNOT_BE_OPENED: return "File cannot be opened";
+    case ERROR_EMPTY_BODY: return "No data was provided (empty body)";
     default: return "Something went wrong";
     }
 }

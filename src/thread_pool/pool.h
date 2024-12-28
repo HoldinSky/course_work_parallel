@@ -53,8 +53,8 @@ public:
     ThreadPool &operator=(ThreadPool const &rhs) = delete;
 
 private:
-    bool initialized = false;
-    bool terminated = false;
+    std::atomic_bool initialized{false};
+    std::atomic_bool terminated{false};
 
 private:
     uint32_t threadsCount;

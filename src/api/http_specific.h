@@ -14,6 +14,7 @@
 enum Method
 {
     GET = 1,
+    POST = 2,
     UNKNOWN = 0,
 };
 
@@ -21,20 +22,21 @@ struct MethodStrings
 {
     static constexpr char const* const GET = "GET";
     static constexpr uint32_t GET_LEN = strLength(MethodStrings::GET);
+
+    static constexpr char const* const POST = "POST";
+    static constexpr uint32_t POST_LEN = strLength(MethodStrings::POST);
 };
 
 struct HttpRequest
 {
     std::string topLine{};
+
+    Method method = UNKNOWN;
+    std::string path{};
+    std::string protocol{};
+
     std::unordered_map<std::string, std::string> headers{};
     std::string body{};
-};
-
-struct HttpTopLine
-{
-    Method method = UNKNOWN;
-    std::string requestPath{};
-    std::string protocol{};
 };
 
 struct HttpResponse
@@ -57,9 +59,6 @@ struct RequestPath
 
 void parseRequest(const char* requestBuffer, HttpRequest* out_request, HttpResponse* out_response);
 
-void parseHttpTopLine(const std::string& input, HttpTopLine* out_line, HttpResponse* out_response);
-
-std::string composeResponse(HttpRequest const& request, HttpResponse const& response,
-                            std::set<std::string> const& paths = {});
+std::string composeResponse(HttpRequest const& request, HttpResponse const& response);
 
 #endif //CW_HTTP_SPECIFIC_H

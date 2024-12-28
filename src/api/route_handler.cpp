@@ -2,6 +2,8 @@
 
 #include <winsock2.h>
 
+#define REMOVE_ALL_REQUEST_BODY "<all>"
+
 // utilities here
 
 FileIndexer RouteHandler::indexer;
@@ -11,17 +13,28 @@ inline bool isLinesDelimiter(char const& ch)
     return ch == '\n';
 }
 
-void RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
+int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
 {
+    if (requestBody.empty())
+    {
+        return ERROR_EMPTY_BODY;
+    }
     for (auto const& pathToIndex : split(requestBody, '\n'))
     {
         RouteHandler::indexer.addToIndex(pathToIndex);
     }
+
+    return 0;
 }
 
-void RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
+int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
 {
     if (requestBody.empty())
+    {
+        return ERROR_EMPTY_BODY;
+    }
+
+    if (requestBody == REMOVE_ALL_REQUEST_BODY)
     {
         RouteHandler::indexer.removeAllFromIndex();
     }
@@ -32,18 +45,20 @@ void RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
             RouteHandler::indexer.removeFromIndex(pathToIndex);
         }
     }
+
+    return 0;
 }
 
 // methods here
 
-void RouteHandler::addToIndex(std::string const& requestBody)
+int RouteHandler::addToIndex(std::string const& requestBody)
 {
-    RouteHandler::decideWhatToIndexAndStart(requestBody);
+    return RouteHandler::decideWhatToIndexAndStart(requestBody);
 }
 
-void RouteHandler::removeFromIndex(std::string const& requestBody)
+int RouteHandler::removeFromIndex(std::string const& requestBody)
 {
-    RouteHandler::decideWhatToRemoveAndStart(requestBody);
+    return RouteHandler::decideWhatToRemoveAndStart(requestBody);
 }
 
 std::set<std::string> RouteHandler::findFilesWithAllWords(std::string const& requestBody, HttpResponse* response)

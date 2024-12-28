@@ -10,44 +10,11 @@
 #include "common.h"
 
 #define DEFAULT_PORT 2772
-#define BUFFER_SIZE 524288
 #define SERVER_ADDR "127.0.0.1"
 
 using lock_guard = std::unique_lock<std::mutex>;
 
-struct SocketMessageWrapper
-{
-    int32_t length{};
-    char* data{};
-};
-
-struct Commands
-{
-    // server -> client commands
-    static constexpr const char* const listeningTheSocket = "listening"; // ready to receive data
-    static constexpr int32_t listeningTheSocketLen = strLength(listeningTheSocket);
-
-    static constexpr const char* const processDone = "done"; // informing client of the end of resource-consuming task
-    static constexpr int32_t processDoneLen = strLength(processDone);
-
-    static constexpr const char* const currentlyIndexing = "indexing"; // informing client of index being currently in progress
-    static constexpr int32_t currentlyIndexingLen = strLength(currentlyIndexing);
-
-    static constexpr const char* const error = "error";
-    static constexpr int32_t errorLen = strLength(error);
-
-    // client -> server commands
-    static constexpr const char* const getProgress = "smp"; // send me progress
-    static constexpr int32_t getProgressLen = strLength(getProgress);
-};
-
 void printErrorAndHalt(const char* msg);
-
-void ReadFromSocketToWrapper(uint32_t const socket, struct SocketMessageWrapper* const msg, int const flags);
-
-void SendStringList(uint32_t const socket, std::set<std::string> const& stringList);
-
-// c-style string manipulation
 
 /// updates 'currentSize' variable in accordance to count of bytes added to 'buf' = sizeof(data).
 uint32_t populateMessageWithBytes(

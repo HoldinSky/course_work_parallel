@@ -3,9 +3,6 @@
 #include <cstdint>
 #include <iostream>
 
-// 1 Megabyte
-#define BUFFER_SIZE 1048576
-
 Range findWord(char const* const str, int64_t const& length, int64_t const& offset, bool (*isDelimiter)(char const&))
 {
     int64_t wordStart = offset, wordEnd = offset;
@@ -31,7 +28,7 @@ void parseInputStreamByWord(std::istream& inputData, std::function<void(char con
                             uint32_t count, bool (*isDelimiter)(char const&))
 {
     bool const ignoreCount = count == 0;
-    char buffer[BUFFER_SIZE]{};
+    char buffer[BYTES_IN_1MB]{};
     int64_t charsProcessed = 0;
     std::string prevWordPart;
 
@@ -41,8 +38,8 @@ void parseInputStreamByWord(std::istream& inputData, std::function<void(char con
         range = {-1, -1};
 
         inputData.seekg(charsProcessed, std::ios::beg);
-        inputData.read(buffer, BUFFER_SIZE - 1);
-        buffer[BUFFER_SIZE - 1] = 0;
+        inputData.read(buffer, BYTES_IN_1MB - 1);
+        buffer[BYTES_IN_1MB - 1] = 0;
         int64_t readBytes = inputData.gcount();
 
         while (readBytes > range.end + 1)

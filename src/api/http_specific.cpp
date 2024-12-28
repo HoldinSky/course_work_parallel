@@ -4,27 +4,50 @@
 #include <sstream>
 #include <fstream>
 
-void parseRequest(const char* requestBuffer, HttpRequest* out_request, HttpResponse* out_response)
+int parseMethod(std::string const& methodStr, HttpRequest* out_request)
 {
-    std::vector<std::string> headers;
-    std::string body;
-
-    std::istringstream stream(requestBuffer);
-    std::string line;
-
-    if (std::getline(stream, line))
+    if (strcmp(methodStr.c_str(), MethodStrings::GET) == 0)
     {
-        out_request->topLine = trim(line);
+        out_request->method = Method::GET;
+        return 0;
+    }
+    else if (strcmp(methodStr.c_str(), MethodStrings::POST) == 0)
+    {
+        out_request->method = Method::POST;
+        return 0;
+    }
+    out_request->method = Method::UNKNOWN;
+
+    return -1;
+}
+
+int parseHttpTopLine(HttpRequest* out_request, HttpResponse* out_response)
+{
+    auto topLineWords = split(out_request->topLine, ' ');
+
+    if (topLineWords.size() != 3)
+    {
+        out_response->error = "Bad request line format";
+        out_response->topLine = TOP_LINE_BAD_REQUEST;
+        return -1;
     }
 
-    if (strncmp(requestBuffer, MethodStrings::GET, MethodStrings::GET_LEN) != 0)
+    if (parseMethod(topLineWords[0], out_request))
     {
         out_response->error = "Failed to recognize request method";
         out_response->topLine = TOP_LINE_BAD_REQUEST;
-        return;
+        return -1;
     }
 
-    while (std::getline(stream, line) && !line.empty() && line != "\r")
+    out_request->path = topLineWords[1];
+    out_request->protocol = topLineWords[2];
+    return 0;
+}
+
+void parseHeaders(std::istream& requestStream, HttpRequest* out_request)
+{
+    std::string line;
+    while (std::getline(requestStream, line) && !line.empty() && line != "\r")
     {
         auto header_line = trim(line);
 
@@ -36,56 +59,67 @@ void parseRequest(const char* requestBuffer, HttpRequest* out_request, HttpRespo
 
         out_request->headers[header] = value;
     }
+}
 
+void parseBody(std::istream& requestStream, HttpRequest* out_request)
+{
+    std::string line;
     std::stringstream bodyStream;
-    while (std::getline(stream, line))
+    while (std::getline(requestStream, line))
     {
         bodyStream << line << "\n";
     }
-    out_request->body = bodyStream.str();
 
+    out_request->body = bodyStream.str();
     if (!out_request->body.empty() && out_request->body.back() == '\n')
     {
         out_request->body.pop_back();
     }
 }
 
-void parseHttpTopLine(const std::string& input, HttpTopLine* out_line, HttpResponse* out_response)
+void parseRequest(const char* requestBuffer, HttpRequest* out_request, HttpResponse* out_response)
 {
-    auto words = split(input, ' ');
+    std::istringstream stream(requestBuffer);
 
-    if (words.size() != 3)
+    if (std::string line; std::getline(stream, line))
     {
-        out_response->error = "Bad request line format";
-        out_response->topLine = TOP_LINE_BAD_REQUEST;
+        out_request->topLine = trim(line);
+    }
+
+    if (parseHttpTopLine(out_request, out_response))
+    {
         return;
     }
 
-    if (strcmp(words[0].c_str(), MethodStrings::GET) != 0)
-    {
-        out_response->error = "Failed to recognize request method";
-        out_response->topLine = TOP_LINE_BAD_REQUEST;
-        return;
-    }
-
-    out_line->method = Method::GET;
-    out_line->requestPath = words[1];
-    out_line->protocol = words[2];
+    parseHeaders(stream, out_request);
+    parseBody(stream, out_request);
 }
 
-std::string generateResponseHeaders(const std::string& body)
+std::string generateResponseHeaders(HttpResponse const& resp)
 {
-    std::string headers = "Content-Length: " + std::to_string(body.length()) + "\r\n";
+    std::string headers = "Content-Length: " + std::to_string(resp.body.length() + resp.error.length()) + "\r\n";
 
-    headers += "Content-Type: text/html; charset=utf-8\r\n";
+    headers += "Content-Type: text/plain; charset=utf-8\r\n";
+    headers += "Access-Control-Allow-Origin: *\r\n";
 
     return headers;
 }
 
-std::string composeResponse(HttpRequest const& request, HttpResponse const& response,
-                            std::set<std::string> const& paths)
+std::string composeResponse(HttpRequest const& request, HttpResponse const& response)
 {
-    auto const headers = generateResponseHeaders(response.body);
+    auto const headers = generateResponseHeaders(response);
 
-    return request.topLine + headers + "\r\n" + response.body;
+    std::stringstream outStream;
+    outStream << response.topLine;
+    outStream << headers << "\r\n";
+    if (!response.body.empty())
+    {
+        outStream << response.body <<"\r\n";
+    }
+    if (!response.error.empty())
+    {
+        outStream << response.error << "\r\n";
+    }
+
+    return outStream.str();
 }

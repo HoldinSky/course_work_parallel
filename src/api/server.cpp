@@ -54,7 +54,7 @@ std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t& soc
     {
         // it is here because inet_ntoa is not thread-safe, it uses static internal buffer
         exclusiveLock _(stdoutLock);
-        printf("[INFO | SOCK] Successfully accepted connection from %s:%d\n",
+        printf("[INFO | HTTP] Accepted connection from %s:%d\n",
                inet_ntoa(accepted.address.sin_addr),
                ntohs(accepted.address.sin_port));
     }
@@ -127,10 +127,8 @@ int32_t srv::serverRoutine()
 
 void routeRequest(uint32_t const& socketFd)
 {
-    static constexpr int routingBufferSize = 1024;
-    char buf[BUFFER_SIZE]{};
-
-    ssize_t bytesRead = recv(socketFd, buf, BUFFER_SIZE, 0);
+    char buf[BYTES_IN_1MB]{};
+    ssize_t bytesRead = recv(socketFd, buf, BYTES_IN_1MB, 0);
     if (bytesRead == 0)
     {
         fprintf(stderr, "[ERR | SOCK] Connection closed by peer\n");
@@ -152,24 +150,16 @@ void routeRequest(uint32_t const& socketFd)
         return;
     }
 
-    HttpTopLine topLine{};
-    parseHttpTopLine(request.topLine, &topLine, &response);
-    if (!response.error.empty())
-    {
-        auto const responseStr = composeResponse(request, response);
-        send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.size()), 0);
-        return;
-    }
-
     std::set<std::string> returnSet;
-    auto const route = topLine.requestPath.c_str();
+    auto const route = request.path.c_str();
+    int result{};
     if (strcmp(route, RequestPath::addToIndex) == 0)
     {
-        RouteHandler::addToIndex(request.body);
+        result = RouteHandler::addToIndex(request.body);
     }
     else if (strcmp(route, RequestPath::removeFromIndex) == 0)
     {
-        RouteHandler::removeFromIndex(request.body);
+        result = RouteHandler::removeFromIndex(request.body);
     }
     else if (strcmp(route, RequestPath::filesWithAllWords) == 0)
     {
@@ -189,7 +179,25 @@ void routeRequest(uint32_t const& socketFd)
         response.topLine = TOP_LINE_NOT_FOUND;
     }
 
-    std::string const responseStr = composeResponse(request, response, returnSet);
+    if (result != 0 && response.error.empty())
+    {
+        response.error = MapErrorCodeToString(result);
+        response.topLine = TOP_LINE_BAD_REQUEST;
+    }
+
+    if (response.topLine.empty() && response.error.empty())
+    {
+        response.topLine = TOP_LINE_200;
+    }
+
+    std::stringstream bodyStream;
+    for (auto const& path : returnSet)
+    {
+        bodyStream << path << "\r\n";
+    }
+    response.body = bodyStream.str();
+
+    auto const responseStr = composeResponse(request, response);
     send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.length()), 0);
 
     resetTimeout(socketFd, SO_RCVTIMEO);
