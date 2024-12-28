@@ -12,8 +12,8 @@
 
 #define ERROR_CURRENTLY_INDEXING 271
 #define ERROR_PATH_DOES_NOT_EXIST 272
-#define ERROR_FILE_ALREADY_INDEXED 273
-#define ERROR_FILE_ALREADY_NOT_INDEXED 274
+#define ERROR_PATH_ALREADY_INDEXED 273
+#define ERROR_PATH_ALREADY_NOT_INDEXED 274
 #define ERROR_WORDS_NOT_PROVIDED 275
 #define ERROR_PATHS_NOT_PROVIDED 276
 #define ERROR_EMPTY_BODY 277
@@ -68,8 +68,8 @@ inline std::string MapErrorCodeToString(int32_t const& code)
     {
     case ERROR_CURRENTLY_INDEXING: return "Indexing is in progress";
     case ERROR_PATH_DOES_NOT_EXIST: return "Path does not exist";
-    case ERROR_FILE_ALREADY_INDEXED: return "File is already indexed";
-    case ERROR_FILE_ALREADY_NOT_INDEXED: return "File is already not indexed";
+    case ERROR_PATH_ALREADY_INDEXED: return "Path is already included in index";
+    case ERROR_PATH_ALREADY_NOT_INDEXED: return "Path is already excluded from index";
     case ERROR_WORDS_NOT_PROVIDED: return "Words were not provided";
     case ERROR_PATHS_NOT_PROVIDED: return "Paths were not provided";
     case ERROR_FILE_CANNOT_BE_OPENED: return "File cannot be opened";

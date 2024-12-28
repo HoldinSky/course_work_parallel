@@ -5,8 +5,6 @@
 #include "text_utils/file_parser.h"
 #include "api/server.h"
 
-std::string const dataRootPath = R"(D:\prg\cpp\inverted_index\data)";
-
 int main()
 {
     WSADATA wsaData;
@@ -16,7 +14,9 @@ int main()
         return 1;
     }
 
-    srv::serverRoutine();
+    ThreadPool threadPool(12);
+
+    srv::serverRoutine(&threadPool);
 
     return 0;
 }

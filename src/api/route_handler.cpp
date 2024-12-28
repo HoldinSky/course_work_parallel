@@ -6,14 +6,12 @@
 
 // utilities here
 
-FileIndexer RouteHandler::indexer;
-
 inline bool isLinesDelimiter(char const& ch)
 {
     return ch == '\n';
 }
 
-int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
+int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody) const
 {
     if (requestBody.empty())
     {
@@ -21,13 +19,13 @@ int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
     }
     for (auto const& pathToIndex : split(requestBody, '\n'))
     {
-        RouteHandler::indexer.addToIndex(pathToIndex);
+        indexer->addToIndex(pathToIndex);
     }
 
     return 0;
 }
 
-int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
+int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody) const
 {
     if (requestBody.empty())
     {
@@ -36,13 +34,13 @@ int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
 
     if (requestBody == REMOVE_ALL_REQUEST_BODY)
     {
-        RouteHandler::indexer.removeAllFromIndex();
+        indexer->removeAllFromIndex();
     }
     else
     {
         for (auto const& pathToIndex : split(requestBody, '\n'))
         {
-            RouteHandler::indexer.removeFromIndex(pathToIndex);
+            indexer->removeFromIndex(pathToIndex);
         }
     }
 
@@ -51,22 +49,22 @@ int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
 
 // methods here
 
-int RouteHandler::addToIndex(std::string const& requestBody)
+int RouteHandler::addToIndex(std::string const& requestBody) const
 {
     return RouteHandler::decideWhatToIndexAndStart(requestBody);
 }
 
-int RouteHandler::removeFromIndex(std::string const& requestBody)
+int RouteHandler::removeFromIndex(std::string const& requestBody) const
 {
     return RouteHandler::decideWhatToRemoveAndStart(requestBody);
 }
 
-std::set<std::string> RouteHandler::findFilesWithAllWords(std::string const& requestBody, HttpResponse* response)
+std::set<std::string> RouteHandler::findFilesWithAllWords(std::string const& requestBody, HttpResponse* response) const
 {
     std::vector<std::string> const wordList = split(requestBody, '\n');
     std::set<std::string> paths;
 
-    auto const err = RouteHandler::indexer.all(wordList, &paths);
+    auto const err = indexer->all(wordList, &paths);
     if (err)
     {
         response->error = MapErrorCodeToString(err);
@@ -75,12 +73,12 @@ std::set<std::string> RouteHandler::findFilesWithAllWords(std::string const& req
     return paths;
 }
 
-std::set<std::string> RouteHandler::findFilesWithAnyWords(std::string const& requestBody, HttpResponse* response)
+std::set<std::string> RouteHandler::findFilesWithAnyWords(std::string const& requestBody, HttpResponse* response) const
 {
     std::vector<std::string> const wordList = split(requestBody, '\n');
     std::set<std::string> paths;
 
-    auto const err = RouteHandler::indexer.any(wordList, &paths);
+    auto const err = indexer->any(wordList, &paths);
     if (err)
     {
         response->error = MapErrorCodeToString(err);
@@ -89,7 +87,12 @@ std::set<std::string> RouteHandler::findFilesWithAnyWords(std::string const& req
     return paths;
 }
 
-std::set<std::string> RouteHandler::reindex()
+void RouteHandler::reindex() const
 {
-    return RouteHandler::indexer.reindexAll();
+    indexer->reindexAll();
+}
+
+std::set<std::string> RouteHandler::getAllIndexedEntries() const
+{
+    return indexer->getAllIndexedEntries();
 }

@@ -9,6 +9,7 @@
 #include <unordered_map>
 
 // utilities function here
+std::atomic_uint64_t taskIdCounter = 10;
 
 uint32_t createAndOpenSocket(uint16_t const port)
 {
@@ -47,7 +48,7 @@ acceptedClient internalAccept(const uint32_t& socket_handler)
     return accepted;
 }
 
-std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t& socketHandler)
+ThreadTask srv::acceptConnection(const uint32_t& socketHandler, RouteHandler const& handler)
 {
     auto accepted = internalAccept(socketHandler);
 
@@ -59,35 +60,38 @@ std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t& soc
                ntohs(accepted.address.sin_port));
     }
 
-    std::thread t(&srv::handleRequest, accepted);
-    return std::make_pair(accepted, std::move(t));
+    ThreadTask task{};
+    task.id = taskIdCounter.fetch_add(1);
+    task.action = [=]
+    {
+        handleRequest(accepted, handler);
+    };
+
+    return task;
 }
 
 // main part here
 
-int32_t srv::serverRoutine()
+int32_t srv::serverRoutine(ThreadPool* pool)
 {
     const uint32_t mainLoopSocket_d = createAndOpenSocket(DEFAULT_PORT);
 
-    std::unordered_map<acceptedClient, std::thread> clientHandlerThreads{};
+    FileIndexer indexer{};
+    RouteHandler const handler(&indexer);
 
     printf("[INFO] Server is up and running on :%d\n", DEFAULT_PORT);
 
-    std::thread _([&]()
+    ThreadTask saveIndexTask{};
+    saveIndexTask.id = 0;
+    saveIndexTask.action = [&]()
     {
         while (true)
         {
-            std::this_thread::sleep_for(std::chrono::seconds(15));
-            for (auto& [client, thread] : clientHandlerThreads)
-            {
-                if (thread.joinable())
-                {
-                    thread.join();
-                    clientHandlerThreads.erase(client);
-                }
-            }
+            indexer.saveIndexToCSV();
+            std::this_thread::sleep_for(std::chrono::minutes(5));
         }
-    });
+    };
+    pool->scheduleTask(saveIndexTask);
 
     fd_set readfds;
     constexpr timeval timeout{1, 0}; // timeout 1 second
@@ -107,17 +111,8 @@ int32_t srv::serverRoutine()
 
         if (FD_ISSET(mainLoopSocket_d, &readfds))
         {
-            auto connection = acceptConnection(mainLoopSocket_d);
-
-            clientHandlerThreads.insert(std::move(connection));
-        }
-    }
-
-    for (auto& [_, thread] : clientHandlerThreads)
-    {
-        if (thread.joinable())
-        {
-            thread.join();
+            auto task = acceptConnection(mainLoopSocket_d, handler);
+            pool->scheduleTask(task);
         }
     }
 
@@ -125,7 +120,7 @@ int32_t srv::serverRoutine()
     return 0;
 }
 
-void routeRequest(uint32_t const& socketFd)
+void routeRequest(uint32_t const& socketFd, RouteHandler const& handler)
 {
     char buf[BYTES_IN_1MB]{};
     ssize_t bytesRead = recv(socketFd, buf, BYTES_IN_1MB, 0);
@@ -152,26 +147,37 @@ void routeRequest(uint32_t const& socketFd)
 
     std::set<std::string> returnSet;
     auto const route = request.path.c_str();
+    bool isWrongMethod = false;
     int result{};
     if (strcmp(route, RequestPath::addToIndex) == 0)
     {
-        result = RouteHandler::addToIndex(request.body);
+        result = handler.addToIndex(request.body);
+        isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::removeFromIndex) == 0)
     {
-        result = RouteHandler::removeFromIndex(request.body);
+        result = handler.removeFromIndex(request.body);
+        isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAllWords) == 0)
     {
-        returnSet = RouteHandler::findFilesWithAllWords(request.body, &response);
+        returnSet = handler.findFilesWithAllWords(request.body, &response);
+        isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAnyWord) == 0)
     {
-        returnSet = RouteHandler::findFilesWithAnyWords(request.body, &response);
+        returnSet = handler.findFilesWithAnyWords(request.body, &response);
+        isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::reindex) == 0)
     {
-        returnSet = RouteHandler::reindex();
+        handler.reindex();
+        isWrongMethod = request.method != Method::POST;
+    }
+    else if (strcmp(route, RequestPath::getAllIndexed) == 0)
+    {
+        returnSet = handler.getAllIndexedEntries();
+        isWrongMethod = request.method != Method::GET;
     }
     else
     {
@@ -179,23 +185,29 @@ void routeRequest(uint32_t const& socketFd)
         response.topLine = TOP_LINE_NOT_FOUND;
     }
 
-    if (result != 0 && response.error.empty())
+    if (response.error.empty())
     {
-        response.error = MapErrorCodeToString(result);
-        response.topLine = TOP_LINE_BAD_REQUEST;
+        if (result != 0)
+        {
+            response.error = MapErrorCodeToString(result);
+            response.topLine = TOP_LINE_BAD_REQUEST;
+        }
+        else if (isWrongMethod)
+        {
+            response.error = "Invalid request method";
+            response.topLine = TOP_LINE_BAD_REQUEST;
+        }
+        else
+        {
+            response.topLine = TOP_LINE_200;
+            std::stringstream bodyStream;
+            for (auto const& path : returnSet)
+            {
+                bodyStream << path << "\r\n";
+            }
+            response.body = bodyStream.str();
+        }
     }
-
-    if (response.topLine.empty() && response.error.empty())
-    {
-        response.topLine = TOP_LINE_200;
-    }
-
-    std::stringstream bodyStream;
-    for (auto const& path : returnSet)
-    {
-        bodyStream << path << "\r\n";
-    }
-    response.body = bodyStream.str();
 
     auto const responseStr = composeResponse(request, response);
     send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.length()), 0);
@@ -203,12 +215,12 @@ void routeRequest(uint32_t const& socketFd)
     resetTimeout(socketFd, SO_RCVTIMEO);
 }
 
-int32_t srv::handleRequest(const acceptedClient& client)
+int32_t srv::handleRequest(const acceptedClient& client, RouteHandler const& handler)
 {
     // accept task input in 60 seconds timeout
     setTimeout(client.socketFd, SO_RCVTIMEO, 60);
 
-    routeRequest(client.socketFd);
+    routeRequest(client.socketFd, handler);
 
     closesocket(client.socketFd);
 

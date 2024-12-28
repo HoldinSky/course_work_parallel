@@ -7,18 +7,22 @@
 class RouteHandler
 {
 private:
-    static FileIndexer indexer;
-
-private:
-    static int decideWhatToIndexAndStart(std::string const& requestBody);
-    static int decideWhatToRemoveAndStart(std::string const& requestBody);
+    FileIndexer* indexer;
 
 public:
-    static int addToIndex(std::string const& requestBody);
-    static int removeFromIndex(std::string const& requestBody);
-    static std::set<std::string> findFilesWithAllWords(std::string const& requestBody, HttpResponse* response);
-    static std::set<std::string> findFilesWithAnyWords(std::string const& requestBody, HttpResponse* response);
-    static std::set<std::string> reindex();
+    explicit RouteHandler(FileIndexer *indexer) : indexer(indexer) {}
+
+private:
+    [[nodiscard]] int decideWhatToIndexAndStart(std::string const& requestBody) const;
+    [[nodiscard]] int decideWhatToRemoveAndStart(std::string const& requestBody) const;
+
+public:
+    [[nodiscard]] int addToIndex(std::string const& requestBody) const;
+    [[nodiscard]] int removeFromIndex(std::string const& requestBody) const;
+    std::set<std::string> findFilesWithAllWords(std::string const& requestBody, HttpResponse* response) const;
+    std::set<std::string> findFilesWithAnyWords(std::string const& requestBody, HttpResponse* response) const;
+    void reindex() const;
+    [[nodiscard]] std::set<std::string> getAllIndexedEntries() const;
 };
 
 #endif // CW_API_ROUTER_H

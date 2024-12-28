@@ -27,7 +27,7 @@ public:
     }
 
 private:
-    static constexpr auto defaultIndexFile = R"(D:\prg\cpp\inverted_index\working_data\index.csv)";
+    static constexpr auto csvWithStoredIndexPath = R"(D:\prg\cpp\inverted_index\working_data\index.csv)";
 
     std::unordered_map<std::string, std::set<std::string>> index{};
     std::set<std::string> allFilePaths{};
@@ -56,19 +56,20 @@ private:
 private:
     std::set<std::string> findFiles(std::string const& word);
 
-    void saveIndexToCSV();
-
     void readIndexFromCSV();
+    void indexDefaultDirectory();
 
 public:
+    void saveIndexToCSV();
+    std::set<std::string> getAllIndexedEntries();
+
     int addToIndex(std::string const& pathStr);
     int removeFromIndex(std::string const& pathStr);
     void removeAllFromIndex();
     std::set<std::string> reindexAll();
 
-    int all(std::vector<std::string> const& words, std::set<std::string>* const out_Paths);
-    int any(std::vector<std::string> const& words, std::set<std::string>* const out_Paths);
+    int all(std::vector<std::string> const& words, std::set<std::string>* out_Paths);
+    int any(std::vector<std::string> const& words, std::set<std::string>* out_Paths);
 };
-
 
 #endif // CW_FILE_INDEXER_H

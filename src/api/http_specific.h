@@ -55,6 +55,7 @@ struct RequestPath
     static constexpr const char* const filesWithAnyWord = "/files-any-word";
     static constexpr const char* const filesWithAllWords = "/file-all-words";
     static constexpr const char* const reindex = "/reindex";
+    static constexpr const char* const getAllIndexed = "/get-all-indexed";
 };
 
 void parseRequest(const char* requestBuffer, HttpRequest* out_request, HttpResponse* out_response);

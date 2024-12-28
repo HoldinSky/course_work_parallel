@@ -9,6 +9,19 @@ namespace fs = std::filesystem;
 
 // utilities
 
+std::string const dataRootPath = R"(D:\prg\cpp\inverted_index\data)";
+
+void FileIndexer::indexDefaultDirectory()
+{
+    for (const auto& entry : fs::directory_iterator(dataRootPath))
+    {
+        if (entry.is_directory())
+        {
+            this->indexDirectory(entry.path());
+        }
+    }
+}
+
 void FileIndexer::addMapping(const std::string& word, const std::string& path)
 {
     std::set<std::string> pathSet;
@@ -153,12 +166,13 @@ std::set<std::string> FileIndexer::findFiles(const std::string& word)
 
 void FileIndexer::readIndexFromCSV()
 {
-    if (!fs::exists(defaultIndexFile))
+    if (!fs::exists(csvWithStoredIndexPath))
     {
+        this->indexDefaultDirectory();
         return;
     }
 
-    std::ifstream file(defaultIndexFile, std::ios::in);
+    std::ifstream file(csvWithStoredIndexPath, std::ios::in);
     if (!file || !file.is_open())
     {
         return;
@@ -185,7 +199,7 @@ void FileIndexer::readIndexFromCSV()
 
 void FileIndexer::saveIndexToCSV()
 {
-    const bool exists = fs::exists(defaultIndexFile);
+    const bool exists = fs::exists(csvWithStoredIndexPath);
     if (!this->overwriteSave && exists)
     {
         return;
@@ -193,7 +207,7 @@ void FileIndexer::saveIndexToCSV()
 
     if (!exists)
     {
-        fs::path targetFilePath(defaultIndexFile);
+        fs::path targetFilePath(csvWithStoredIndexPath);
 
         if (targetFilePath.has_parent_path())
         {
@@ -201,7 +215,7 @@ void FileIndexer::saveIndexToCSV()
         }
     }
 
-    std::ofstream file(defaultIndexFile, std::ios::out);
+    std::ofstream file(csvWithStoredIndexPath, std::ios::out);
     if (!file || !file.is_open())
     {
         return;
@@ -244,7 +258,7 @@ int FileIndexer::addToIndex(const std::string& pathStr)
     {
         if (this->allFilePaths.contains(pathStr))
         {
-            return ERROR_FILE_ALREADY_INDEXED;
+            return ERROR_PATH_ALREADY_INDEXED;
         }
         rcode = this->indexFile(path);
     }
@@ -272,7 +286,7 @@ int FileIndexer::removeFromIndex(std::string const& pathStr)
     {
         if (!this->allFilePaths.contains(pathStr))
         {
-            return ERROR_FILE_ALREADY_NOT_INDEXED;
+            return ERROR_PATH_ALREADY_NOT_INDEXED;
         }
         rcode = this->removeFile(path);
     }
@@ -366,4 +380,9 @@ int FileIndexer::any(const std::vector<std::string>& words, std::set<std::string
     }
 
     return 0;
+}
+
+std::set<std::string> FileIndexer::getAllIndexedEntries()
+{
+    return this->allFilePaths;
 }
