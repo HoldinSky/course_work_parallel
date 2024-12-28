@@ -48,7 +48,7 @@ acceptedClient internalAccept(const uint32_t& socket_handler)
     return accepted;
 }
 
-ThreadTask srv::acceptConnection(const uint32_t& socketHandler, RouteHandler const& handler)
+ThreadTask srv::acceptConnection(const uint32_t& socketHandler, RouteHandler* handler)
 {
     auto accepted = internalAccept(socketHandler);
 
@@ -69,7 +69,7 @@ int32_t srv::serverRoutine(ThreadPool* pool)
     const uint32_t mainLoopSocket_d = createAndOpenSocket(DEFAULT_PORT);
 
     FileIndexer indexer{};
-    RouteHandler const handler(&indexer);
+    RouteHandler handler(&indexer);
 
     printf("[INFO] Server is up and running on :%d\n", DEFAULT_PORT);
 
@@ -103,7 +103,7 @@ int32_t srv::serverRoutine(ThreadPool* pool)
 
         if (FD_ISSET(mainLoopSocket_d, &readfds))
         {
-            auto task = acceptConnection(mainLoopSocket_d, handler);
+            auto task = acceptConnection(mainLoopSocket_d, &handler);
             pool->scheduleTask(task);
         }
     }
@@ -112,7 +112,7 @@ int32_t srv::serverRoutine(ThreadPool* pool)
     return 0;
 }
 
-void routeRequest(acceptedClient const& client, RouteHandler const& handler)
+void routeRequest(acceptedClient const& client, RouteHandler* handler)
 {
     char buf[BYTES_IN_1MB]{};
     auto const socketFd = client.socketFd;
@@ -157,32 +157,32 @@ void routeRequest(acceptedClient const& client, RouteHandler const& handler)
     int result{};
     if (strcmp(route, RequestPath::addToIndex) == 0)
     {
-        result = handler.addToIndex(request.body);
+        result = handler->addToIndex(request.body);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::removeFromIndex) == 0)
     {
-        result = handler.removeFromIndex(request.body);
+        result = handler->removeFromIndex(request.body);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAllWords) == 0)
     {
-        result = handler.findFilesWithAllWords(request.body, &returnSet);
+        result = handler->findFilesWithAllWords(request.body, &returnSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAnyWord) == 0)
     {
-        result = handler.findFilesWithAnyWords(request.body, &returnSet);
+        result = handler->findFilesWithAnyWords(request.body, &returnSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::reindex) == 0)
     {
-        handler.reindex();
+        handler->reindex();
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::getAllIndexed) == 0)
     {
-        returnSet = handler.getAllIndexedEntries();
+        returnSet = handler->getAllIndexedEntries();
         isWrongMethod = request.method != Method::GET;
     }
     else
@@ -221,7 +221,7 @@ void routeRequest(acceptedClient const& client, RouteHandler const& handler)
     resetTimeout(socketFd, SO_RCVTIMEO);
 }
 
-int32_t srv::handleRequest(const acceptedClient& client, RouteHandler const& handler)
+int32_t srv::handleRequest(const acceptedClient& client, RouteHandler* handler)
 {
     // accept task input in 60 seconds timeout
     setTimeout(client.socketFd, SO_RCVTIMEO, 60);

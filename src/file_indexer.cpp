@@ -1,5 +1,6 @@
 #include "file_indexer.h"
 #include "text_utils/file_parser.h"
+#include "common.h"
 
 #include <filesystem>
 #include <fstream>
@@ -117,7 +118,7 @@ int FileIndexer::removeDirectory(fs::path const& path)
 
 int FileIndexer::indexFile(fs::path const& path)
 {
-    auto const& pathStr = path.string();
+    auto const pathStr = path.string();
     std::ifstream file(pathStr);
     if (!file)
     {
@@ -125,14 +126,14 @@ int FileIndexer::indexFile(fs::path const& path)
         return ERROR_FILE_CANNOT_BE_OPENED;
     }
 
-    parseInputStreamByWord(file, [&](char const* word) { this->indexWord(word, pathStr); });
+    parseInputStreamByWord(file,[&](char const* word){ addMapping(word, pathStr); });
 
     return 0;
 }
 
 int FileIndexer::removeFile(fs::path const& path)
 {
-    auto const& pathStr = path.string();
+    auto const pathStr = path.string();
     std::ifstream file(pathStr);
     if (!file)
     {
@@ -140,21 +141,9 @@ int FileIndexer::removeFile(fs::path const& path)
         return ERROR_FILE_CANNOT_BE_OPENED;
     }
 
-    parseInputStreamByWord(file, [&](char const* word) { this->removeWord(word, pathStr); });
+    parseInputStreamByWord(file, [&](char const* word) { removeMapping(word, pathStr); });
 
     return 0;
-}
-
-void FileIndexer::indexWord(const char* word, const std::string& path)
-{
-    const auto wordStr = std::string(word);
-    this->addMapping(wordStr, path);
-}
-
-void FileIndexer::removeWord(char const* word, std::string const& path)
-{
-    const auto wordStr = std::string(word);
-    this->removeMapping(wordStr, path);
 }
 
 std::set<std::string> FileIndexer::findFiles(const std::string& word)

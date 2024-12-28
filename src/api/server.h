@@ -5,6 +5,7 @@
 #include <thread>
 
 #include "route_handler.h"
+#include "thread_pool/pool.h"
 
 struct acceptedClient
 {
@@ -38,9 +39,9 @@ namespace srv
 {
     int32_t serverRoutine(ThreadPool* pool);
 
-    ThreadTask acceptConnection(const uint32_t& socketHandler, RouteHandler const& handler);
+    ThreadTask acceptConnection(const uint32_t& socketHandler, RouteHandler* handler);
 
-    int32_t handleRequest(const acceptedClient& client, RouteHandler const& handler);
+    int32_t handleRequest(const acceptedClient& client, RouteHandler* handler);
 }
 
 #endif // CW_API_SERVER_H

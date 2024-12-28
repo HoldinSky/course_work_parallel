@@ -5,8 +5,9 @@
 #include <unordered_map>
 #include <string>
 #include <filesystem>
-
-#include "thread_pool/pool.h"
+#include <vector>
+#include <atomic>
+#include <shared_mutex>
 
 namespace fs = std::filesystem;
 
@@ -49,9 +50,6 @@ private:
 
     int indexDirectory(fs::path const& path);
     int removeDirectory(fs::path const& path);
-
-    void indexWord(char const* word, std::string const& path);
-    void removeWord(char const* word, std::string const& path);
 
 private:
     std::set<std::string> findFiles(std::string const& word);

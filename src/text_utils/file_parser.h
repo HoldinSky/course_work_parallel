@@ -1,12 +1,10 @@
 #ifndef CW_TEXT_UTILS_FILE_PARSER_H
 #define CW_TEXT_UTILS_FILE_PARSER_H
 
-#include <cstdint>
+#include "common.h"
+
 #include <functional>
 #include <set>
-
-#include "common.h"
-#include "file_indexer.h"
 
 const std::set delimiters = {
     '\0', '\t', '\n', '\r',

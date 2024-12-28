@@ -1,8 +1,4 @@
-#include <cstdint>
-#include <iostream>
-
-#include "text_utils/file_parser.h"
-#include "common.h"
+#include "file_parser.h"
 
 int64_t findWordsAndPerformAction(char const* const str, int64_t const length,
                                   std::function<void(char const*)> const& action,

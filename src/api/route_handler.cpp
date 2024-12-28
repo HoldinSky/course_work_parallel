@@ -1,12 +1,11 @@
 #include "route_handler.h"
-
-#include <winsock2.h>
+#include "common.h"
 
 #define REMOVE_ALL_REQUEST_BODY "<all>"
 
 // utilities here
 
-int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody) const
+int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
 {
     if (requestBody.empty())
     {
@@ -20,7 +19,7 @@ int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody) cons
     return 0;
 }
 
-int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody) const
+int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
 {
     if (requestBody.empty())
     {
@@ -44,12 +43,12 @@ int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody) con
 
 // methods here
 
-int RouteHandler::addToIndex(std::string const& requestBody) const
+int RouteHandler::addToIndex(std::string const& requestBody)
 {
     return RouteHandler::decideWhatToIndexAndStart(requestBody);
 }
 
-int RouteHandler::removeFromIndex(std::string const& requestBody) const
+int RouteHandler::removeFromIndex(std::string const& requestBody)
 {
     return RouteHandler::decideWhatToRemoveAndStart(requestBody);
 }
@@ -68,7 +67,7 @@ int RouteHandler::findFilesWithAnyWords(std::string const& requestBody, std::set
     return indexer->any(wordList, out_paths);
 }
 
-void RouteHandler::reindex() const
+void RouteHandler::reindex()
 {
     indexer->reindexAll();
 }

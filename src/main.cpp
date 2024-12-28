@@ -2,8 +2,8 @@
 #include <fstream>
 
 #include "file_indexer.h"
-#include "text_utils/file_parser.h"
 #include "api/server.h"
+#include "text_utils/file_parser.h"
 
 int main()
 {
