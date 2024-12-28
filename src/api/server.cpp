@@ -1,6 +1,7 @@
 #include "server.h"
-#include "socketUtils.h"
-#include "router.h"
+#include "socket_utils.h"
+#include "route_handler.h"
+#include "http_specific.h"
 
 #include <iostream>
 #include <unistd.h>
@@ -50,7 +51,13 @@ std::pair<acceptedClient, std::thread> srv::acceptConnection(const uint32_t& soc
 {
     auto accepted = internalAccept(socketHandler);
 
-    printf("[INFO | SOCK] Successfully accepted connection\n");
+    {
+        // it is here because inet_ntoa is not thread-safe, it uses static internal buffer
+        exclusiveLock _(stdoutLock);
+        printf("[INFO | SOCK] Successfully accepted connection from %s:%d\n",
+               inet_ntoa(accepted.address.sin_addr),
+               ntohs(accepted.address.sin_port));
+    }
 
     std::thread t(&srv::handleRequest, accepted);
     return std::make_pair(accepted, std::move(t));
@@ -90,7 +97,7 @@ int32_t srv::serverRoutine()
         FD_ZERO(&readfds);
         FD_SET(mainLoopSocket_d, &readfds);
 
-        const int rcode = select(0, &readfds, nullptr, nullptr, &timeout); // '0' for Windows fd_set size
+        int const rcode = select(0, &readfds, nullptr, nullptr, &timeout); // '0' for Windows fd_set size
 
         if (rcode == SOCKET_ERROR)
         {
@@ -121,61 +128,77 @@ int32_t srv::serverRoutine()
 void routeRequest(uint32_t const& socketFd)
 {
     static constexpr int routingBufferSize = 1024;
-    SocketMessageWrapper buffer{};
+    char buf[BUFFER_SIZE]{};
 
-    int rcode = recv(socketFd, reinterpret_cast<char*>(&buffer.length), sizeof(buffer.length), 0);
-    if (rcode <= 0)
+    ssize_t bytesRead = recv(socketFd, buf, BUFFER_SIZE, 0);
+    if (bytesRead == 0)
     {
+        fprintf(stderr, "[ERR | SOCK] Connection closed by peer\n");
+        return;
+    }
+    else if (bytesRead == -1)
+    {
+        fprintf(stderr, "[ERR | SOCK] Failed to receive data from client or timeout was reached\n");
         return;
     }
 
-    rcode = recv(socketFd, buffer.data, buffer.length, 0);
-    if (rcode <= 0)
+    HttpRequest request{};
+    HttpResponse response{};
+    parseRequest(buf, &request, &response);
+    if (!response.error.empty())
     {
+        auto const responseStr = composeResponse(request, response);
+        send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.size()), 0);
         return;
     }
 
-    auto const route = std::string(buffer.data);
-    if (strcmp(buffer.data, ServerRoute::addToIndex) == 0)
+    HttpTopLine topLine{};
+    parseHttpTopLine(request.topLine, &topLine, &response);
+    if (!response.error.empty())
     {
-        ServerRouter::addToIndex(socketFd);
+        auto const responseStr = composeResponse(request, response);
+        send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.size()), 0);
+        return;
     }
-    else if (strcmp(buffer.data, ServerRoute::removeFromIndex) == 0)
+
+    std::set<std::string> returnSet;
+    auto const route = topLine.requestPath.c_str();
+    if (strcmp(route, RequestPath::addToIndex) == 0)
     {
-        ServerRouter::removeFromIndex(socketFd);
+        RouteHandler::addToIndex(request.body);
     }
-    else if (strcmp(buffer.data, ServerRoute::filesWithAllWords) == 0)
+    else if (strcmp(route, RequestPath::removeFromIndex) == 0)
     {
-        ServerRouter::findFilesWithAllWords(socketFd);
+        RouteHandler::removeFromIndex(request.body);
     }
-    else if (strcmp(buffer.data, ServerRoute::filesWithAnyWord) == 0)
+    else if (strcmp(route, RequestPath::filesWithAllWords) == 0)
     {
-        ServerRouter::findFilesWithAnyWords(socketFd);
+        returnSet = RouteHandler::findFilesWithAllWords(request.body, &response);
     }
-    else if (strcmp(buffer.data, ServerRoute::reindex) == 0)
+    else if (strcmp(route, RequestPath::filesWithAnyWord) == 0)
     {
-        ServerRouter::reindex(socketFd);
+        returnSet = RouteHandler::findFilesWithAnyWords(request.body, &response);
+    }
+    else if (strcmp(route, RequestPath::reindex) == 0)
+    {
+        returnSet = RouteHandler::reindex();
     }
     else
     {
-        auto const msg = "Unknown route";
-        send(socketFd, msg, strlen(msg), 0);
+        response.error = "Unknown request route";
+        response.topLine = TOP_LINE_NOT_FOUND;
     }
+
+    std::string const responseStr = composeResponse(request, response, returnSet);
+    send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.length()), 0);
+
+    resetTimeout(socketFd, SO_RCVTIMEO);
 }
 
 int32_t srv::handleRequest(const acceptedClient& client)
 {
-    uint32_t msg_pos = 0;
-    char buffer[BUFFER_SIZE];
-
-    startMessage(buffer, msg_pos, BUFFER_SIZE, Commands::listeningTheSocket);
-    if (!safeSend(client.socketFd, buffer, msg_pos, 0))
-    {
-        return -1;
-    }
-
-    // accept task input in 10 seconds timeout
-    setTimeout(client.socketFd, SO_RCVTIMEO, 15);
+    // accept task input in 60 seconds timeout
+    setTimeout(client.socketFd, SO_RCVTIMEO, 60);
 
     routeRequest(client.socketFd);
 

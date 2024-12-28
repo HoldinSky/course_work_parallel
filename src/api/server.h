@@ -35,13 +35,4 @@ namespace srv {
     int32_t handleRequest(const acceptedClient &client);
 }
 
-struct ServerRoute
-{
-    static constexpr const char* const addToIndex = "add-to-index";
-    static constexpr const char* const removeFromIndex = "remove-from-index";
-    static constexpr const char* const filesWithAnyWord = "files-any-word";
-    static constexpr const char* const filesWithAllWords = "file-all-words";
-    static constexpr const char* const reindex = "reindex";
-};
-
 #endif // CW_API_SERVER_H

@@ -1,22 +1,12 @@
-#ifndef CW_FILEINDEXER_H
-#define CW_FILEINDEXER_H
-
-#define ERROR_FILE_CANNOT_BE_OPENED 270
-
-#define ERROR_CURRENTLY_INDEXING 271
-#define ERROR_PATH_DOES_NOT_EXIST 272
-#define ERROR_FILE_ALREADY_INDEXED 273
-#define ERROR_FILE_ALREADY_NOT_INDEXED 274
-#define ERROR_WORDS_NOT_PROVIDED 275
-#define ERROR_PATHS_NOT_PROVIDED 276
-
-#include "thread_pool/pool.h"
+#ifndef CW_FILE_INDEXER_H
+#define CW_FILE_INDEXER_H
 
 #include <set>
 #include <unordered_map>
 #include <string>
 #include <filesystem>
 
+#include "thread_pool/pool.h"
 
 namespace fs = std::filesystem;
 
@@ -74,11 +64,11 @@ public:
     int addToIndex(std::string const& pathStr);
     int removeFromIndex(std::string const& pathStr);
     void removeAllFromIndex();
-    void reindexAll();
+    std::set<std::string> reindexAll();
 
     int all(std::vector<std::string> const& words, std::set<std::string>* const out_Paths);
     int any(std::vector<std::string> const& words, std::set<std::string>* const out_Paths);
 };
 
 
-#endif // CW_FILEINDEXER_H
+#endif // CW_FILE_INDEXER_H

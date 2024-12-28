@@ -1,4 +1,4 @@
-#include "socketUtils.h"
+#include "socket_utils.h"
 
 #include <winsock2.h>
 #include <csignal>
@@ -65,7 +65,7 @@ void SendStringList(uint32_t const socket, std::set<std::string> const& stringLi
     }
 
     send(socket, reinterpret_cast<char*>(&buffer.length), sizeof(buffer.length), 0);
-    send(socket, buffer.data, strlen(buffer.data), 0);
+    send(socket, buffer.data, static_cast<int32_t>(strlen(buffer.data)), 0);
 
     free(buffer.data);
 }
@@ -125,7 +125,7 @@ void setTimeout(const uint32_t s_fd, const int32_t timeoutType, const int32_t se
     setsockopt(s_fd, SOL_SOCKET, timeoutType, reinterpret_cast<const char*>(&tv), sizeof tv);
 }
 
-void resetTimeout(const int32_t s_fd, const int32_t timeoutType)
+void resetTimeout(const uint32_t s_fd, const int32_t timeoutType)
 {
     constexpr timeval tv{0, 0};
 

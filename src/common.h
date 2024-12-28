@@ -8,6 +8,15 @@
 #include <cstdint>
 #include <chrono>
 
+#define ERROR_FILE_CANNOT_BE_OPENED 270
+
+#define ERROR_CURRENTLY_INDEXING 271
+#define ERROR_PATH_DOES_NOT_EXIST 272
+#define ERROR_FILE_ALREADY_INDEXED 273
+#define ERROR_FILE_ALREADY_NOT_INDEXED 274
+#define ERROR_WORDS_NOT_PROVIDED 275
+#define ERROR_PATHS_NOT_PROVIDED 276
+
 using rwLock = std::shared_mutex;
 using sharedLock = std::shared_lock<rwLock>;
 using exclusiveLock = std::unique_lock<rwLock>;
@@ -17,27 +26,51 @@ static rwLock commonMutex;
 
 static std::condition_variable_any commonMonitor;
 
-struct Terminal {
-    const char *const red = "\033[0;31m";
-    const char *const green = "\033[0;32m";
-    const char *const yellow = "\033[0;33m";
-    const char *const blue = "\033[0;34m";
-    const char *const magenta = "\033[0;35m";
-    const char *const cyan = "\033[0;36m";
-    const char *const white = "\033[0;37m";
-    const char *const reset = "\033[0m";
-};
+constexpr uint32_t strLength(const char* const str)
+{
+    uint32_t len = 0;
 
-static constexpr Terminal terminal{};
+    for (; str[len] != '\0'; len++)
+    {
+    }
 
-template<typename FT>
-std::chrono::duration<int64_t, std::milli>
-measureExecutionTime(FT func) {
-    const auto start = std::chrono::high_resolution_clock::now();
-    func();
-    const auto end = std::chrono::high_resolution_clock::now();
+    return len + 1;
+}
 
-    return std::chrono::duration_cast<std::chrono::milliseconds>(end - start);
+inline std::string trim(const std::string& s)
+{
+    auto const start = s.find_first_not_of(" \t\r\n");
+    auto const end = s.find_last_not_of(" \t\r\n");
+    return start == std::string::npos ? "" : s.substr(start, end - start + 1);
+}
+
+inline std::vector<std::string> split(const std::string& str, char const& delimiter)
+{
+    std::vector<std::string> output;
+    std::string word;
+    std::istringstream stream(str);
+
+    while (std::getline(stream, word, delimiter))
+    {
+        output.push_back(word);
+    }
+
+    return output;
+}
+
+inline std::string MapErrorCodeToString(int32_t const& code)
+{
+    switch (code)
+    {
+    case ERROR_CURRENTLY_INDEXING: return "Indexing is in progress";
+    case ERROR_PATH_DOES_NOT_EXIST: return "Path does not exist";
+    case ERROR_FILE_ALREADY_INDEXED: return "File is already indexed";
+    case ERROR_FILE_ALREADY_NOT_INDEXED: return "File is already not indexed";
+    case ERROR_WORDS_NOT_PROVIDED: return "Words were not provided";
+    case ERROR_PATHS_NOT_PROVIDED: return "Paths were not provided";
+    case ERROR_FILE_CANNOT_BE_OPENED: return "File cannot be opened";
+    default: return "Something went wrong";
+    }
 }
 
 /// both indices are inclusive

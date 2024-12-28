@@ -7,27 +7,18 @@
 #include <mutex>
 #include <set>
 
+#include "common.h"
+
 #define DEFAULT_PORT 2772
-#define BUFFER_SIZE 32768
+#define BUFFER_SIZE 524288
 #define SERVER_ADDR "127.0.0.1"
 
 using lock_guard = std::unique_lock<std::mutex>;
 
-constexpr uint32_t strLength(const char* const str)
-{
-    uint32_t len = 0;
-
-    for (; str[len] != '\0'; len++)
-    {
-    }
-
-    return len + 1;
-}
-
 struct SocketMessageWrapper
 {
-    int32_t length;
-    char* data;
+    int32_t length{};
+    char* data{};
 };
 
 struct Commands
@@ -112,6 +103,6 @@ void AppendToString(char** dest, const char* src);
 
 void setTimeout(uint32_t s_fd, int32_t timeoutType, int32_t secs, int32_t usec = 0);
 
-void resetTimeout(int32_t s_fd, int32_t timeoutType);
+void resetTimeout(uint32_t s_fd, int32_t timeoutType);
 
 #endif // CW_API_SOCKET_UTILS_H

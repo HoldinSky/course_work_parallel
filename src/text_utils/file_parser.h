@@ -1,11 +1,11 @@
 #ifndef CW_TEXT_UTILS_FILE_PARSER_H
 #define CW_TEXT_UTILS_FILE_PARSER_H
 
-#include "common.h"
-
 #include <cstdint>
 #include <functional>
 #include <set>
+
+#include "common.h"
 
 const std::set delimitersCharSet = {
     '\0', '\t', '\n', '\r',

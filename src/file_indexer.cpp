@@ -1,5 +1,5 @@
-#include "FileIndexer.h"
-#include "text_utils/fileParser.h"
+#include "file_indexer.h"
+#include "text_utils/file_parser.h"
 
 #include <filesystem>
 #include <fstream>
@@ -288,7 +288,7 @@ void FileIndexer::removeAllFromIndex()
     this->allFilePaths.clear();
 }
 
-void FileIndexer::reindexAll()
+std::set<std::string> FileIndexer::reindexAll()
 {
     exclusiveLock _(this->indexLock);
     this->isCurrentlyIndexing.exchange(true);
@@ -308,6 +308,8 @@ void FileIndexer::reindexAll()
     }
 
     this->isCurrentlyIndexing.exchange(false);
+
+    return this->allFilePaths;
 }
 
 
