@@ -14,16 +14,16 @@ public:
     }
 
 private:
-    [[nodiscard]] int decideWhatToIndexAndStart(std::string const& requestBody);
-    [[nodiscard]] int decideWhatToRemoveAndStart(std::string const& requestBody);
+    int decideWhatToIndexAndStart(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const;
+    int decideWhatToRemoveAndStart(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const;
 
 public:
-    [[nodiscard]] int addToIndex(std::string const& requestBody);
-    [[nodiscard]] int removeFromIndex(std::string const& requestBody);
+    int addToIndex(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const;
+    int removeFromIndex(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const;
     int findFilesWithAllWords(std::string const& requestBody, std::set<std::string>* out_paths) const;
     int findFilesWithAnyWords(std::string const& requestBody, std::set<std::string>* out_paths) const;
-    void reindex();
-    [[nodiscard]] std::set<std::string> getAllIndexedEntries() const;
+    int reindex(std::set<std::string>* out_set) const;
+    [[nodiscard]] int getAllIndexedEntries(std::set<std::string>* out_paths) const;
 };
 
 #endif // CW_API_ROUTER_H

@@ -5,7 +5,7 @@
 
 // utilities here
 
-int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
+int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const
 {
     if (requestBody.empty())
     {
@@ -13,13 +13,16 @@ int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody)
     }
     for (auto const& pathToIndex : split(requestBody, '\n'))
     {
-        indexer->addToIndex(pathToIndex);
+        if (int const res = indexer->addToIndex(pathToIndex); res != 0)
+        {
+            out_errorCodes->emplace(pathToIndex, res);
+        }
     }
 
     return 0;
 }
 
-int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
+int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const
 {
     if (requestBody.empty())
     {
@@ -34,7 +37,10 @@ int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
     {
         for (auto const& pathToIndex : split(requestBody, '\n'))
         {
-            indexer->removeFromIndex(pathToIndex);
+            if (int const res = indexer->removeFromIndex(pathToIndex); res != 0)
+            {
+                out_errorCodes->emplace(pathToIndex, res);
+            }
         }
     }
 
@@ -43,14 +49,14 @@ int RouteHandler::decideWhatToRemoveAndStart(std::string const& requestBody)
 
 // methods here
 
-int RouteHandler::addToIndex(std::string const& requestBody)
+int RouteHandler::addToIndex(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const
 {
-    return RouteHandler::decideWhatToIndexAndStart(requestBody);
+    return decideWhatToIndexAndStart(requestBody, out_errorCodes);
 }
 
-int RouteHandler::removeFromIndex(std::string const& requestBody)
+int RouteHandler::removeFromIndex(std::string const& requestBody, std::unordered_map<std::string, int>* out_errorCodes) const
 {
-    return RouteHandler::decideWhatToRemoveAndStart(requestBody);
+    return decideWhatToRemoveAndStart(requestBody, out_errorCodes);
 }
 
 int RouteHandler::findFilesWithAllWords(std::string const& requestBody, std::set<std::string>* out_paths) const
@@ -67,12 +73,12 @@ int RouteHandler::findFilesWithAnyWords(std::string const& requestBody, std::set
     return indexer->any(wordList, out_paths);
 }
 
-void RouteHandler::reindex()
+int RouteHandler::reindex(std::set<std::string>* out_set) const
 {
-    indexer->reindexAll();
+    return indexer->reindexAll(out_set);
 }
 
-std::set<std::string> RouteHandler::getAllIndexedEntries() const
+int RouteHandler::getAllIndexedEntries(std::set<std::string>* out_paths) const
 {
-    return indexer->getAllIndexedEntries();
+    return indexer->getAllIndexedEntries(out_paths);
 }

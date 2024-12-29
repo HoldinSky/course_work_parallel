@@ -1,11 +1,10 @@
 #include "server.h"
-#include "socket_utils.h"
-#include "route_handler.h"
 #include "http_specific.h"
 
 #include <iostream>
 #include <unistd.h>
 #include <cstring>
+#include <fstream>
 #include <unordered_map>
 
 // utilities function here
@@ -54,7 +53,7 @@ ThreadTask srv::acceptConnection(const uint32_t& socketHandler, RouteHandler* ha
 
     ThreadTask task{};
     task.id = taskIdCounter.fetch_add(1);
-    task.action = [=]
+    task.action = [accepted, handler]
     {
         handleRequest(accepted, handler);
     };
@@ -112,6 +111,26 @@ int32_t srv::serverRoutine(ThreadPool* pool)
     return 0;
 }
 
+void fillBody(HttpResponse* response, std::set<std::string> const* set)
+{
+    std::stringstream bodyStream;
+    for (auto const& path : *set)
+    {
+        bodyStream << path << "\r\n";
+    }
+    response->body = trim(bodyStream.str());
+}
+
+void fillBody(HttpResponse* response, std::unordered_map<std::string, int> const* map)
+{
+    std::stringstream bodyStream;
+    for (auto const& [path, error] : *map)
+    {
+        bodyStream << path << " - " << MapErrorCodeToString(error) << "\r\n";
+    }
+    response->body = trim(bodyStream.str());
+}
+
 void routeRequest(acceptedClient const& client, RouteHandler* handler)
 {
     char buf[BYTES_IN_1MB]{};
@@ -139,7 +158,7 @@ void routeRequest(acceptedClient const& client, RouteHandler* handler)
         return;
     }
 
-    std::set<std::string> returnSet;
+    std::set<std::string> resultSet;
     auto const route = request.path.c_str();
 
     {
@@ -155,34 +174,35 @@ void routeRequest(acceptedClient const& client, RouteHandler* handler)
 
     bool isWrongMethod = false;
     int result{};
+    std::unordered_map<std::string, int> errorCodes;
     if (strcmp(route, RequestPath::addToIndex) == 0)
     {
-        result = handler->addToIndex(request.body);
+        result = handler->addToIndex(request.body, &errorCodes);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::removeFromIndex) == 0)
     {
-        result = handler->removeFromIndex(request.body);
+        result = handler->removeFromIndex(request.body, &errorCodes);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAllWords) == 0)
     {
-        result = handler->findFilesWithAllWords(request.body, &returnSet);
+        result = handler->findFilesWithAllWords(request.body, &resultSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAnyWord) == 0)
     {
-        result = handler->findFilesWithAnyWords(request.body, &returnSet);
+        result = handler->findFilesWithAnyWords(request.body, &resultSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::reindex) == 0)
     {
-        handler->reindex();
+        result = handler->reindex(&resultSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::getAllIndexed) == 0)
     {
-        returnSet = handler->getAllIndexedEntries();
+        result = handler->getAllIndexedEntries(&resultSet);
         isWrongMethod = request.method != Method::GET;
     }
     else
@@ -191,42 +211,39 @@ void routeRequest(acceptedClient const& client, RouteHandler* handler)
         response.topLine = TOP_LINE_NOT_FOUND;
     }
 
-    if (response.error.empty())
+    if (!errorCodes.empty())
     {
-        if (result != 0)
-        {
-            response.error = MapErrorCodeToString(result);
-            response.topLine = TOP_LINE_BAD_REQUEST;
-        }
-        else if (isWrongMethod)
-        {
-            response.error = "Unrecognized request method";
-            response.topLine = TOP_LINE_BAD_REQUEST;
-        }
-        else
-        {
-            response.topLine = TOP_LINE_200;
-            std::stringstream bodyStream;
-            for (auto const& path : returnSet)
-            {
-                bodyStream << path << "\r\n";
-            }
-            response.body = trim(bodyStream.str());
-        }
+        response.topLine = TOP_LINE_BAD_REQUEST;
+        fillBody(&response, &errorCodes);
+    }
+    else if (result != 0)
+    {
+        response.topLine = TOP_LINE_BAD_REQUEST;
+        response.error = MapErrorCodeToString(result);
+    }
+    else if (isWrongMethod)
+    {
+        response.error = "Unrecognized request method";
+        response.topLine = TOP_LINE_BAD_REQUEST;
+    }
+    else
+    {
+        response.topLine = TOP_LINE_200;
+        fillBody(&response, &resultSet);
     }
 
     auto const responseStr = composeResponse(request, response);
     send(socketFd, responseStr.c_str(), static_cast<int32_t>(responseStr.length()), 0);
-
-    resetTimeout(socketFd, SO_RCVTIMEO);
 }
 
-int32_t srv::handleRequest(const acceptedClient& client, RouteHandler* handler)
+int32_t srv::handleRequest(acceptedClient const& client, RouteHandler* handler)
 {
     // accept task input in 60 seconds timeout
     setTimeout(client.socketFd, SO_RCVTIMEO, 60);
 
     routeRequest(client, handler);
+
+    resetTimeout(client.socketFd, SO_RCVTIMEO);
 
     closesocket(client.socketFd);
 

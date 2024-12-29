@@ -64,11 +64,11 @@ void FileIndexer::addMapping(const std::string& word, const std::set<std::string
 
 void FileIndexer::removeMapping(std::string const& word, std::string const& path)
 {
+    std::set<std::string> pathSet;
     try
     {
-        std::set<std::string> pathSet = this->index.at(word);
+        pathSet = this->index.at(word);
         pathSet.erase(path);
-        this->allIndexedPaths.erase(path);
 
         if (pathSet.empty())
         {
@@ -78,6 +78,9 @@ void FileIndexer::removeMapping(std::string const& word, std::string const& path
     catch (std::out_of_range const& _)
     {
     }
+    this->allIndexedPaths.erase(path);
+
+    this->index.insert_or_assign(word, pathSet);
 }
 
 // private here
@@ -88,7 +91,7 @@ int FileIndexer::indexDirectory(fs::path const& path)
     {
         if (entry.is_directory())
         {
-            this->indexDirectory(entry.path().string());
+            this->indexDirectory(entry.path());
         }
         else
         {
@@ -105,7 +108,7 @@ int FileIndexer::removeDirectory(fs::path const& path)
     {
         if (entry.is_directory())
         {
-            this->removeDirectory(entry.path().string());
+            this->removeDirectory(entry.path());
         }
         else
         {
@@ -116,32 +119,30 @@ int FileIndexer::removeDirectory(fs::path const& path)
     return 0;
 }
 
-int FileIndexer::indexFile(fs::path const& path)
+int FileIndexer::indexFile(std::string const& path)
 {
-    auto const pathStr = path.string();
-    std::ifstream file(pathStr);
+    std::ifstream file(path);
     if (!file)
     {
-        fprintf(stderr, "[ERR] Could not open file %ls\n", path.c_str());
+        fprintf(stderr, "[ERR] Could not open file %s\n", path.c_str());
         return ERROR_FILE_CANNOT_BE_OPENED;
     }
 
-    parseInputStreamByWord(file,[&](char const* word){ addMapping(word, pathStr); });
+    parseInputStreamByWord(file, [this, path](char const* word) { this->addMapping(word, path); });
 
     return 0;
 }
 
-int FileIndexer::removeFile(fs::path const& path)
+int FileIndexer::removeFile(std::string const& path)
 {
-    auto const pathStr = path.string();
-    std::ifstream file(pathStr);
+    std::ifstream file(path);
     if (!file)
     {
-        fprintf(stderr, "[ERR] Could not open file %ls\n", path.c_str());
+        fprintf(stderr, "[ERR] Could not open file %s\n", path.c_str());
         return ERROR_FILE_CANNOT_BE_OPENED;
     }
 
-    parseInputStreamByWord(file, [&](char const* word) { removeMapping(word, pathStr); });
+    parseInputStreamByWord(file, [this, path](char const* word) { removeMapping(word, path); });
 
     return 0;
 }
@@ -222,6 +223,8 @@ void FileIndexer::saveIndexToCSV()
 
     std::string line;
     std::stringstream ss(line);
+
+    exclusiveLock _(this->indexLock);
     for (const auto& [word, paths] : this->index)
     {
         ss << word;
@@ -246,9 +249,10 @@ int FileIndexer::addToIndex(const std::string& pathStr)
         return ERROR_PATH_DOES_NOT_EXIST;
     }
 
-    exclusiveLock _(this->indexLock);
-    int rcode;
     this->isCurrentlyIndexing.exchange(true);
+    int rcode;
+
+    exclusiveLock _(this->indexLock);
     if (fs::is_directory(path))
     {
         rcode = this->indexDirectory(path);
@@ -257,10 +261,12 @@ int FileIndexer::addToIndex(const std::string& pathStr)
     {
         if (this->allIndexedPaths.contains(pathStr))
         {
+            this->isCurrentlyIndexing.exchange(false);
             return ERROR_PATH_ALREADY_INDEXED;
         }
-        rcode = this->indexFile(path);
+        rcode = this->indexFile(pathStr);
     }
+
     this->isCurrentlyIndexing.exchange(false);
 
     return rcode;
@@ -275,6 +281,8 @@ int FileIndexer::removeFromIndex(std::string const& pathStr)
         return ERROR_PATH_DOES_NOT_EXIST;
     }
 
+    this->isCurrentlyIndexing.exchange(true);
+
     exclusiveLock _(this->indexLock);
     int rcode;
     if (fs::is_directory(path))
@@ -285,10 +293,12 @@ int FileIndexer::removeFromIndex(std::string const& pathStr)
     {
         if (!this->allIndexedPaths.contains(pathStr))
         {
+            this->isCurrentlyIndexing.exchange(false);
             return ERROR_PATH_ALREADY_NOT_INDEXED;
         }
-        rcode = this->removeFile(path);
+        rcode = this->removeFile(pathStr);
     }
+    this->isCurrentlyIndexing.exchange(false);
 
     return rcode;
 }
@@ -301,11 +311,15 @@ void FileIndexer::removeAllFromIndex()
     this->allIndexedPaths.clear();
 }
 
-std::set<std::string> FileIndexer::reindexAll()
+int FileIndexer::reindexAll(std::set<std::string>* out_set)
 {
-    exclusiveLock _(this->indexLock);
-    this->isCurrentlyIndexing.exchange(true);
+    if (this->isCurrentlyIndexing.load())
+    {
+        return ERROR_CURRENTLY_INDEXING;
+    }
+    this->isCurrentlyIndexing.store(true);
 
+    exclusiveLock _(this->indexLock);
     this->index.clear();
     for (auto const& entry : this->allIndexedPaths)
     {
@@ -316,13 +330,14 @@ std::set<std::string> FileIndexer::reindexAll()
         }
         else
         {
-            this->indexFile(path);
+            this->indexFile(entry);
         }
     }
 
-    this->isCurrentlyIndexing.exchange(false);
+    this->isCurrentlyIndexing.store(false);
+    *out_set = this->allIndexedPaths;
 
-    return this->allIndexedPaths;
+    return 0;
 }
 
 
@@ -381,7 +396,12 @@ int FileIndexer::any(const std::vector<std::string>& words, std::set<std::string
     return 0;
 }
 
-std::set<std::string> FileIndexer::getAllIndexedEntries()
+int FileIndexer::getAllIndexedEntries(std::set<std::string>* out_paths) const
 {
-    return this->allIndexedPaths;
+    if (this->isCurrentlyIndexing.load())
+    {
+        return ERROR_CURRENTLY_INDEXING;
+    }
+    *out_paths = this->allIndexedPaths;
+    return 0;
 }

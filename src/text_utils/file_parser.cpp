@@ -34,14 +34,15 @@ void parseInputStreamByWord(std::istream& iStream,
                             std::function<void(char const*)> const& actionPerWord,
                             std::function<bool(char const&)> const& isDelimiter)
 {
-    char buffer[BYTES_IN_1MB]{};
+    constexpr int size = BYTES_IN_1KB * 4;
+    char buffer[size]{};
     int64_t charsProcessed = 0, effectiveChars = 0;
 
     while (iStream)
     {
         iStream.seekg(charsProcessed, std::ios::beg);
-        iStream.read(buffer, BYTES_IN_1MB - 1);
-        buffer[BYTES_IN_1MB - 1] = 0;
+        iStream.read(buffer, size - 1);
+        buffer[size - 1] = 0;
 
         effectiveChars = findWordsAndPerformAction(buffer, iStream.gcount(), actionPerWord, isDelimiter);
         charsProcessed += effectiveChars;

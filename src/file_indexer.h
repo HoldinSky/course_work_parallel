@@ -45,8 +45,8 @@ private:
     void removeMapping(std::string const& word, std::string const& path);
 
 private:
-    int indexFile(fs::path const& path);
-    int removeFile(fs::path const& path);
+    int indexFile(std::string const& path);
+    int removeFile(std::string const& path);
 
     int indexDirectory(fs::path const& path);
     int removeDirectory(fs::path const& path);
@@ -59,12 +59,12 @@ private:
 
 public:
     void saveIndexToCSV();
-    std::set<std::string> getAllIndexedEntries();
+    int getAllIndexedEntries(std::set<std::string>* out_paths) const;
 
     int addToIndex(std::string const& pathStr);
     int removeFromIndex(std::string const& pathStr);
     void removeAllFromIndex();
-    std::set<std::string> reindexAll();
+    int reindexAll(std::set<std::string>* out_set);
 
     int all(std::vector<std::string> const& words, std::set<std::string>* out_Paths);
     int any(std::vector<std::string> const& words, std::set<std::string>* out_Paths);
