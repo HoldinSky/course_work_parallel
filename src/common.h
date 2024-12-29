@@ -18,8 +18,8 @@
 #define ERROR_PATHS_NOT_PROVIDED 276
 #define ERROR_EMPTY_BODY 277
 
-// 1 Megabyte
 #define BYTES_IN_1MB 1048576
+#define BYTES_IN_1KB 1024
 
 using rwLock = std::shared_mutex;
 using sharedLock = std::shared_lock<rwLock>;

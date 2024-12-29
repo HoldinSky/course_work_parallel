@@ -6,28 +6,27 @@
 #include <set>
 
 #include "common.h"
+#include "file_indexer.h"
 
-const std::set delimitersCharSet = {
+const std::set delimiters = {
     '\0', '\t', '\n', '\r',
     ' ', '\'', '`', '"',
     ',', '.', '!', '?', '(', ')',
-    '/',
+    '/', ';', ':', '<', '>'
 };
 
 inline bool defaultIsDelimiter(char const& ch)
 {
-    return delimitersCharSet.contains(ch);
+    return delimiters.contains(ch);
 }
 
-void parseInputStreamByWord(std::istream& inputData, std::function<void(char const*)> const& actionPerWord,
-                            uint32_t count = 0, bool (*isDelimiter)(char const&) = defaultIsDelimiter);
+inline bool isNotAlpha(char const& ch)
+{
+    return !isalpha(ch);
+}
 
-/// @param str where to look for the word
-/// @param length total length of str
-/// @param offset index from which to look for the word
-/// @param isDelimiter function to distinguish words from delimiters between them
-/// @return Range indices of the next word, both inclusive. If all characters after offset are delimiters [length - 1, length - 1] is returned.
-Range findWord(char const* const str, int64_t const& length,
-               int64_t const& offset, bool (*isDelimiter)(char const&) = defaultIsDelimiter);
+void parseInputStreamByWord(std::istream& iStream,
+                            std::function<void(char const*)> const& actionPerWord,
+                            std::function<bool(char const&)> const& isDelimiter = isNotAlpha);
 
 #endif // CW_TEXT_UTILS_FILE_PARSER_H

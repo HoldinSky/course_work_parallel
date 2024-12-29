@@ -34,7 +34,7 @@ void FileIndexer::addMapping(const std::string& word, const std::string& path)
     {
         pathSet.insert(path);
     }
-    this->allFilePaths.insert(path);
+    this->allIndexedPaths.emplace(path);
 
     this->index.insert_or_assign(word, pathSet);
 }
@@ -48,13 +48,16 @@ void FileIndexer::addMapping(const std::string& word, const std::set<std::string
         for (const auto& path : paths)
         {
             pathSet.insert(path);
-            this->allFilePaths.insert(path);
         }
     }
     catch (const std::out_of_range& _)
     {
     }
 
+    for (const auto& path : pathSet)
+    {
+        this->allIndexedPaths.emplace(path);
+    }
     this->index.insert_or_assign(word, pathSet);
 }
 
@@ -64,7 +67,9 @@ void FileIndexer::removeMapping(std::string const& word, std::string const& path
     {
         std::set<std::string> pathSet = this->index.at(word);
         pathSet.erase(path);
-        if (path.empty())
+        this->allIndexedPaths.erase(path);
+
+        if (pathSet.empty())
         {
             this->index.erase(word);
         }
@@ -113,7 +118,7 @@ int FileIndexer::removeDirectory(fs::path const& path)
 int FileIndexer::indexFile(fs::path const& path)
 {
     auto const& pathStr = path.string();
-    std::ifstream file(pathStr, std::ios::in);
+    std::ifstream file(pathStr);
     if (!file)
     {
         fprintf(stderr, "[ERR] Could not open file %ls\n", path.c_str());
@@ -128,7 +133,7 @@ int FileIndexer::indexFile(fs::path const& path)
 int FileIndexer::removeFile(fs::path const& path)
 {
     auto const& pathStr = path.string();
-    std::ifstream file(pathStr, std::ios::in);
+    std::ifstream file(pathStr);
     if (!file)
     {
         fprintf(stderr, "[ERR] Could not open file %ls\n", path.c_str());
@@ -166,9 +171,10 @@ std::set<std::string> FileIndexer::findFiles(const std::string& word)
 
 void FileIndexer::readIndexFromCSV()
 {
-    if (!fs::exists(csvWithStoredIndexPath))
+    if (!fs::exists(csvWithStoredIndexPath) || fs::file_size(csvWithStoredIndexPath) < BYTES_IN_1KB * 100)
     {
         this->indexDefaultDirectory();
+        this->saveIndexToCSV();
         return;
     }
 
@@ -200,7 +206,7 @@ void FileIndexer::readIndexFromCSV()
 void FileIndexer::saveIndexToCSV()
 {
     const bool exists = fs::exists(csvWithStoredIndexPath);
-    if (!this->overwriteSave && exists)
+    if (exists && !this->overwriteCsv)
     {
         return;
     }
@@ -213,6 +219,10 @@ void FileIndexer::saveIndexToCSV()
         {
             fs::create_directories(targetFilePath.parent_path());
         }
+    }
+    else
+    {
+        fs::remove(csvWithStoredIndexPath);
     }
 
     std::ofstream file(csvWithStoredIndexPath, std::ios::out);
@@ -256,7 +266,7 @@ int FileIndexer::addToIndex(const std::string& pathStr)
     }
     else
     {
-        if (this->allFilePaths.contains(pathStr))
+        if (this->allIndexedPaths.contains(pathStr))
         {
             return ERROR_PATH_ALREADY_INDEXED;
         }
@@ -284,7 +294,7 @@ int FileIndexer::removeFromIndex(std::string const& pathStr)
     }
     else
     {
-        if (!this->allFilePaths.contains(pathStr))
+        if (!this->allIndexedPaths.contains(pathStr))
         {
             return ERROR_PATH_ALREADY_NOT_INDEXED;
         }
@@ -299,7 +309,7 @@ void FileIndexer::removeAllFromIndex()
     exclusiveLock _(this->indexLock);
 
     this->index.clear();
-    this->allFilePaths.clear();
+    this->allIndexedPaths.clear();
 }
 
 std::set<std::string> FileIndexer::reindexAll()
@@ -308,10 +318,10 @@ std::set<std::string> FileIndexer::reindexAll()
     this->isCurrentlyIndexing.exchange(true);
 
     this->index.clear();
-    for (auto const& entry : this->allFilePaths)
+    for (auto const& entry : this->allIndexedPaths)
     {
         auto const path = fs::path(entry);
-        if (!fs::is_directory(path))
+        if (fs::is_directory(path))
         {
             this->indexDirectory(path);
         }
@@ -323,7 +333,7 @@ std::set<std::string> FileIndexer::reindexAll()
 
     this->isCurrentlyIndexing.exchange(false);
 
-    return this->allFilePaths;
+    return this->allIndexedPaths;
 }
 
 
@@ -384,5 +394,5 @@ int FileIndexer::any(const std::vector<std::string>& words, std::set<std::string
 
 std::set<std::string> FileIndexer::getAllIndexedEntries()
 {
-    return this->allFilePaths;
+    return this->allIndexedPaths;
 }

@@ -1,85 +1,53 @@
-#include "text_utils/file_parser.h"
-
 #include <cstdint>
 #include <iostream>
 
-Range findWord(char const* const str, int64_t const& length, int64_t const& offset, bool (*isDelimiter)(char const&))
+#include "text_utils/file_parser.h"
+#include "common.h"
+
+int64_t findWordsAndPerformAction(char const* const str, int64_t const length,
+                                  std::function<void(char const*)> const& action,
+                                  std::function<bool(char const&)> const& isDelimiter)
 {
-    int64_t wordStart = offset, wordEnd = offset;
-    while (wordStart < length && isDelimiter(str[wordStart]))
+    int64_t wordStart = 0, wordEnd = 0;
+    while (true)
     {
-        ++wordStart;
+        while (wordStart < length && isDelimiter(str[wordStart]))
+        {
+            wordStart++;
+        }
+        if (wordStart >= length)
+        {
+            return wordEnd;
+        }
+        wordEnd = wordStart;
+        while (wordEnd < length && !isDelimiter(str[wordEnd]))
+        {
+            wordEnd++;
+        }
+        if (wordEnd >= length && !isDelimiter(str[wordEnd - 1]))
+        {
+            return wordStart;
+        }
+        std::string word(str + wordStart, wordEnd - wordStart);
+        action(word.c_str());
+        wordStart = wordEnd;
     }
-    if (wordStart >= length)
-    {
-        wordStart = length - 1;
-    }
-
-    wordEnd = wordStart + 1;
-    while (wordEnd < length - 1 && !isDelimiter(str[wordEnd + 1]))
-    {
-        ++wordEnd;
-    }
-
-    return Range{wordStart, wordEnd};
 }
 
-void parseInputStreamByWord(std::istream& inputData, std::function<void(char const*)> const& actionPerWord,
-                            uint32_t count, bool (*isDelimiter)(char const&))
+void parseInputStreamByWord(std::istream& iStream,
+                            std::function<void(char const*)> const& actionPerWord,
+                            std::function<bool(char const&)> const& isDelimiter)
 {
-    bool const ignoreCount = count == 0;
     char buffer[BYTES_IN_1MB]{};
-    int64_t charsProcessed = 0;
-    std::string prevWordPart;
+    int64_t charsProcessed = 0, effectiveChars = 0;
 
-    Range range{};
-    while (inputData)
+    while (iStream)
     {
-        range = {-1, -1};
-
-        inputData.seekg(charsProcessed, std::ios::beg);
-        inputData.read(buffer, BYTES_IN_1MB - 1);
+        iStream.seekg(charsProcessed, std::ios::beg);
+        iStream.read(buffer, BYTES_IN_1MB - 1);
         buffer[BYTES_IN_1MB - 1] = 0;
-        int64_t readBytes = inputData.gcount();
 
-        while (readBytes > range.end + 1)
-        {
-            range = findWord(buffer, readBytes, range.end + 1, isDelimiter);
-            auto word = std::string(buffer + range.start, range.length());
-
-            if (range.length() == readBytes)
-            {
-                prevWordPart += word;
-                break;
-            }
-
-            if (range.end >= readBytes - 1)
-            {
-                if (!prevWordPart.empty())
-                {
-                    actionPerWord(prevWordPart.c_str());
-                    if (!ignoreCount && --count <= 0)
-                    {
-                        return;
-                    }
-                }
-                prevWordPart = word;
-                break;
-            }
-
-            word = prevWordPart.append(word);
-            actionPerWord(word.c_str());
-            if (!ignoreCount && --count <= 0)
-            {
-                return;
-            }
-            prevWordPart = "";
-        }
-        charsProcessed += range.end + 1;
-    }
-
-    if (!prevWordPart.empty())
-    {
-        actionPerWord(prevWordPart.c_str());
+        effectiveChars = findWordsAndPerformAction(buffer, iStream.gcount(), actionPerWord, isDelimiter);
+        charsProcessed += effectiveChars;
     }
 }

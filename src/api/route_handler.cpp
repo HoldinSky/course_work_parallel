@@ -6,11 +6,6 @@
 
 // utilities here
 
-inline bool isLinesDelimiter(char const& ch)
-{
-    return ch == '\n';
-}
-
 int RouteHandler::decideWhatToIndexAndStart(std::string const& requestBody) const
 {
     if (requestBody.empty())
@@ -59,32 +54,18 @@ int RouteHandler::removeFromIndex(std::string const& requestBody) const
     return RouteHandler::decideWhatToRemoveAndStart(requestBody);
 }
 
-std::set<std::string> RouteHandler::findFilesWithAllWords(std::string const& requestBody, HttpResponse* response) const
+int RouteHandler::findFilesWithAllWords(std::string const& requestBody, std::set<std::string>* out_paths) const
 {
-    std::vector<std::string> const wordList = split(requestBody, '\n');
-    std::set<std::string> paths;
+    std::vector<std::string> const wordList = split(requestBody, ' ');
 
-    auto const err = indexer->all(wordList, &paths);
-    if (err)
-    {
-        response->error = MapErrorCodeToString(err);
-    }
-
-    return paths;
+    return indexer->all(wordList, out_paths);
 }
 
-std::set<std::string> RouteHandler::findFilesWithAnyWords(std::string const& requestBody, HttpResponse* response) const
+int RouteHandler::findFilesWithAnyWords(std::string const& requestBody, std::set<std::string>* out_paths) const
 {
-    std::vector<std::string> const wordList = split(requestBody, '\n');
-    std::set<std::string> paths;
+    std::vector<std::string> const wordList = split(requestBody, ' ');
 
-    auto const err = indexer->any(wordList, &paths);
-    if (err)
-    {
-        response->error = MapErrorCodeToString(err);
-    }
-
-    return paths;
+    return indexer->any(wordList, out_paths);
 }
 
 void RouteHandler::reindex() const

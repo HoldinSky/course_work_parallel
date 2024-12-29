@@ -52,14 +52,6 @@ ThreadTask srv::acceptConnection(const uint32_t& socketHandler, RouteHandler con
 {
     auto accepted = internalAccept(socketHandler);
 
-    {
-        // it is here because inet_ntoa is not thread-safe, it uses static internal buffer
-        exclusiveLock _(stdoutLock);
-        printf("[INFO | HTTP] Accepted connection from %s:%d\n",
-               inet_ntoa(accepted.address.sin_addr),
-               ntohs(accepted.address.sin_port));
-    }
-
     ThreadTask task{};
     task.id = taskIdCounter.fetch_add(1);
     task.action = [=]
@@ -87,8 +79,8 @@ int32_t srv::serverRoutine(ThreadPool* pool)
     {
         while (true)
         {
-            indexer.saveIndexToCSV();
             std::this_thread::sleep_for(std::chrono::minutes(5));
+            indexer.saveIndexToCSV();
         }
     };
     pool->scheduleTask(saveIndexTask);
@@ -120,9 +112,11 @@ int32_t srv::serverRoutine(ThreadPool* pool)
     return 0;
 }
 
-void routeRequest(uint32_t const& socketFd, RouteHandler const& handler)
+void routeRequest(acceptedClient const& client, RouteHandler const& handler)
 {
     char buf[BYTES_IN_1MB]{};
+    auto const socketFd = client.socketFd;
+
     ssize_t bytesRead = recv(socketFd, buf, BYTES_IN_1MB, 0);
     if (bytesRead == 0)
     {
@@ -147,6 +141,18 @@ void routeRequest(uint32_t const& socketFd, RouteHandler const& handler)
 
     std::set<std::string> returnSet;
     auto const route = request.path.c_str();
+
+    {
+        // it is here because inet_ntoa is not thread-safe, it uses static internal buffer
+        exclusiveLock _(stdoutLock);
+        printf("[INFO | HTTP] %s %s from %s:%d\n",
+               methodToString(request.method).c_str(),
+               route,
+               inet_ntoa(client.address.sin_addr),
+               ntohs(client.address.sin_port)
+        );
+    }
+
     bool isWrongMethod = false;
     int result{};
     if (strcmp(route, RequestPath::addToIndex) == 0)
@@ -161,12 +167,12 @@ void routeRequest(uint32_t const& socketFd, RouteHandler const& handler)
     }
     else if (strcmp(route, RequestPath::filesWithAllWords) == 0)
     {
-        returnSet = handler.findFilesWithAllWords(request.body, &response);
+        result = handler.findFilesWithAllWords(request.body, &returnSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::filesWithAnyWord) == 0)
     {
-        returnSet = handler.findFilesWithAnyWords(request.body, &response);
+        result = handler.findFilesWithAnyWords(request.body, &returnSet);
         isWrongMethod = request.method != Method::POST;
     }
     else if (strcmp(route, RequestPath::reindex) == 0)
@@ -194,7 +200,7 @@ void routeRequest(uint32_t const& socketFd, RouteHandler const& handler)
         }
         else if (isWrongMethod)
         {
-            response.error = "Invalid request method";
+            response.error = "Unrecognized request method";
             response.topLine = TOP_LINE_BAD_REQUEST;
         }
         else
@@ -205,7 +211,7 @@ void routeRequest(uint32_t const& socketFd, RouteHandler const& handler)
             {
                 bodyStream << path << "\r\n";
             }
-            response.body = bodyStream.str();
+            response.body = trim(bodyStream.str());
         }
     }
 
@@ -220,7 +226,7 @@ int32_t srv::handleRequest(const acceptedClient& client, RouteHandler const& han
     // accept task input in 60 seconds timeout
     setTimeout(client.socketFd, SO_RCVTIMEO, 60);
 
-    routeRequest(client.socketFd, handler);
+    routeRequest(client, handler);
 
     closesocket(client.socketFd);
 

@@ -13,10 +13,10 @@ namespace fs = std::filesystem;
 class FileIndexer
 {
 private:
-    bool overwriteSave;
+    bool overwriteCsv;
 
 public:
-    explicit FileIndexer(bool const overwriteStoreFile = true) : overwriteSave(overwriteStoreFile)
+    explicit FileIndexer(bool const overwriteStoreFile = true) : overwriteCsv(overwriteStoreFile)
     {
         this->readIndexFromCSV();
     };
@@ -30,7 +30,7 @@ private:
     static constexpr auto csvWithStoredIndexPath = R"(D:\prg\cpp\inverted_index\working_data\index.csv)";
 
     std::unordered_map<std::string, std::set<std::string>> index{};
-    std::set<std::string> allFilePaths{};
+    std::set<std::string> allIndexedPaths{};
 
 private:
     std::atomic_bool isCurrentlyIndexing{false};

@@ -53,7 +53,7 @@ struct RequestPath
     static constexpr const char* const addToIndex = "/add-to-index";
     static constexpr const char* const removeFromIndex = "/remove-from-index";
     static constexpr const char* const filesWithAnyWord = "/files-any-word";
-    static constexpr const char* const filesWithAllWords = "/file-all-words";
+    static constexpr const char* const filesWithAllWords = "/files-all-words";
     static constexpr const char* const reindex = "/reindex";
     static constexpr const char* const getAllIndexed = "/get-all-indexed";
 };
@@ -61,5 +61,18 @@ struct RequestPath
 void parseRequest(const char* requestBuffer, HttpRequest* out_request, HttpResponse* out_response);
 
 std::string composeResponse(HttpRequest const& request, HttpResponse const& response);
+
+inline std::string methodToString(Method const& method)
+{
+    switch (method)
+    {
+        case Method::GET:
+            return "GET";
+        case Method::POST:
+            return "POST";
+        default:
+            return "UNKNOWN";
+    }
+}
 
 #endif //CW_HTTP_SPECIFIC_H

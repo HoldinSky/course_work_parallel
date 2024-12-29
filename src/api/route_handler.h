@@ -19,8 +19,8 @@ private:
 public:
     [[nodiscard]] int addToIndex(std::string const& requestBody) const;
     [[nodiscard]] int removeFromIndex(std::string const& requestBody) const;
-    std::set<std::string> findFilesWithAllWords(std::string const& requestBody, HttpResponse* response) const;
-    std::set<std::string> findFilesWithAnyWords(std::string const& requestBody, HttpResponse* response) const;
+    int findFilesWithAllWords(std::string const& requestBody, std::set<std::string>* out_paths) const;
+    int findFilesWithAnyWords(std::string const& requestBody, std::set<std::string>* out_paths) const;
     void reindex() const;
     [[nodiscard]] std::set<std::string> getAllIndexedEntries() const;
 };
