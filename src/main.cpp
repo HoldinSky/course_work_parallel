@@ -5,7 +5,7 @@
 #include "api/server.h"
 #include "text_utils/file_parser.h"
 
-int main()
+int main(int argc, char** argv)
 {
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
@@ -14,7 +14,18 @@ int main()
         return 1;
     }
 
-    ThreadPool threadPool(12);
+    int32_t threadCount{};
+    if (argc > 1)
+    {
+        threadCount = strtol(argv[1], nullptr, 10);
+    }
+
+    if (threadCount <= 1)
+    {
+        threadCount = std::max(static_cast<int32_t>(std::thread::hardware_concurrency() / 2), 2);
+    }
+
+    ThreadPool threadPool(threadCount);
 
     srv::serverRoutine(&threadPool);
 
