@@ -161,7 +161,8 @@ std::set<std::string> FileIndexer::findFiles(const std::string& word)
 
 void FileIndexer::readIndexFromCSV()
 {
-    if (!fs::exists(csvWithStoredIndexPath) || fs::file_size(csvWithStoredIndexPath) < BYTES_IN_1KB * 100)
+    if (!fs::exists(csvWithStoredIndexPath) ||
+        fs::file_size(csvWithStoredIndexPath) < BYTES_IN_1KB * 100)
     {
         this->indexDefaultDirectory();
         this->saveIndexToCSV();
@@ -174,7 +175,7 @@ void FileIndexer::readIndexFromCSV()
         return;
     }
 
-    std::string line;
+    std::string line{};
     while (std::getline(file, line))
     {
         std::stringstream ss(line);
@@ -221,7 +222,7 @@ void FileIndexer::saveIndexToCSV()
         return;
     }
 
-    std::string line;
+    std::string line{};
     std::stringstream ss(line);
 
     exclusiveLock _(this->indexLock);
@@ -250,7 +251,7 @@ int FileIndexer::addToIndex(const std::string& pathStr)
     }
 
     this->isCurrentlyIndexing.exchange(true);
-    int rcode;
+    int rcode{};
 
     exclusiveLock _(this->indexLock);
     if (fs::is_directory(path))

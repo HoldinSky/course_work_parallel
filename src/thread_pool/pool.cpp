@@ -24,7 +24,7 @@ void ThreadPool::initialize()
     this->terminated.store(false);
 }
 
-void ThreadPool::joinAll()
+void ThreadPool::waitTillEmpty()
 {
     exclusiveLock _(this->joinLock);
 
@@ -99,7 +99,6 @@ void ThreadPool::threadRoutine()
         }
 
         task.operator()();
-        // printf("[INFO | ThreadPool] Task %lld is done\n", task.id);
     }
 }
 
@@ -111,5 +110,4 @@ void ThreadPool::scheduleTask(const ThreadTask& task)
     exclusiveLock _(this->commonLock);
     this->taskQueue.push(task);
     this->taskWaiter.notify_one();
-    // printf("[INFO | ThreadPool] Task %lld is scheduled\n", task.id);
 }

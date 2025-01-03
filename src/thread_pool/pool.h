@@ -45,7 +45,7 @@ public:
 
     void terminate();
 
-    void joinAll();
+    void waitTillEmpty();
 
 public:
     ThreadPool(ThreadPool const &other) = delete;

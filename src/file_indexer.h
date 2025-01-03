@@ -17,9 +17,10 @@ private:
     bool overwriteCsv;
 
 public:
-    explicit FileIndexer(bool const overwriteStoreFile = true) : overwriteCsv(overwriteStoreFile)
+    explicit FileIndexer(bool const overwriteStoreFile = true) :
+        overwriteCsv(overwriteStoreFile)
     {
-        this->readIndexFromCSV();
+        // this->readIndexFromCSV();
     };
 
     ~FileIndexer()
@@ -55,6 +56,8 @@ private:
     std::set<std::string> findFiles(std::string const& word);
 
     void readIndexFromCSV();
+
+public:
     void indexDefaultDirectory();
 
 public:

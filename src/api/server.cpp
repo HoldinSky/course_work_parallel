@@ -161,17 +161,6 @@ void routeRequest(acceptedClient const& client, RouteHandler* handler)
     std::set<std::string> resultSet;
     auto const route = request.path.c_str();
 
-    {
-        // it is here because inet_ntoa is not thread-safe, it uses static internal buffer
-        exclusiveLock _(stdoutLock);
-        printf("[INFO | HTTP] %s %s from %s:%d\n",
-               methodToString(request.method).c_str(),
-               route,
-               inet_ntoa(client.address.sin_addr),
-               ntohs(client.address.sin_port)
-        );
-    }
-
     bool isWrongMethod = false;
     int result{};
     std::unordered_map<std::string, int> errorCodes;
