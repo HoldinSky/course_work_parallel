@@ -5,15 +5,18 @@
 #include "api/server.h"
 #include "text_utils/file_parser.h"
 
-int main(int argc, char** argv)
+void initWSA()
 {
     WSADATA wsaData;
     if (WSAStartup(MAKEWORD(2, 2), &wsaData) != 0)
     {
         fprintf(stderr, "WSAStartup failed with error: %d\n", WSAGetLastError());
-        return 1;
+        exit(-1);
     }
+}
 
+int getThreadCount(int const argc, char* const * const argv)
+{
     int32_t threadCount{};
     if (argc > 1)
     {
@@ -25,9 +28,21 @@ int main(int argc, char** argv)
         threadCount = std::max(static_cast<int32_t>(std::thread::hardware_concurrency() / 2), 2);
     }
 
-    ThreadPool threadPool(threadCount);
+    return threadCount;
+}
+
+void app(int const argc, char* const * const argv)
+{
+    initWSA();
+
+    ThreadPool threadPool(getThreadCount(argc, argv));
 
     srv::serverRoutine(&threadPool);
+}
+
+int main(int const argc, char* const* const argv)
+{
+    app(argc, argv);
 
     return 0;
 }
